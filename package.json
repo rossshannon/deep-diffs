@@ -1,0 +1,58 @@
+{
+  "name": "deep-diff-text",
+  "version": "1.0.0",
+  "description": "Visualise cumulative changes across multiple text revisions with intensity-based highlighting",
+  "type": "module",
+  "main": "dist/deep-diff.cjs",
+  "module": "dist/deep-diff.js",
+  "types": "dist/deep-diff.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/deep-diff.js",
+      "require": "./dist/deep-diff.cjs",
+      "types": "./dist/deep-diff.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "test": "node --test 'test/*.test.js'",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "diff",
+    "text-diff",
+    "revision",
+    "history",
+    "heatmap",
+    "visualisation",
+    "visualization",
+    "track-changes",
+    "collaborative-editing",
+    "operational-transformation"
+  ],
+  "author": "Ross Shannon",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rossshannon/deep-diff-text.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rossshannon/deep-diff-text/issues"
+  },
+  "homepage": "https://github.com/rossshannon/deep-diff-text#readme",
+  "dependencies": {
+    "diff-match-patch": "^1.0.5"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "rollup": "^4.9.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
