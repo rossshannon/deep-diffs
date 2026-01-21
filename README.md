@@ -8,9 +8,9 @@
 
 Visualise cumulative changes across multiple text revisions. Regions that have been edited multiple times are highlighted with increasing intensity.
 
-![Deep diff example](https://rossshannon.com/projects/deepdiffs/example.png)
+![Deep diff example](https://rossshannon.com/projects/deepdiffs/deep-diff-example.png)
 
-Unlike standard diff tools that compare two versions, `deep-diffs` tracks how text regions shift, expand, and contract through an entire revision history — giving you a "heatmap" of editorial activity.
+Unlike standard diff tools that compare two versions, `deep-diffs` can visualise where changes have been made in a document over time — giving you a “heatmap” of editorial activity, particularly where details are being finessed or continually revised.
 
 ## Use Cases
 
@@ -31,27 +31,25 @@ npm install deep-diffs
 ```javascript
 import { deepDiffHtml, getDefaultStyles } from 'deep-diffs';
 
+// A contract clause being refined over multiple revisions
 const revisions = [
-  'The cat sat on the mat.',
-  'The cat sat on the comfortable mat.',
-  'The black cat sat on the comfortable mat.',
-  'The black cat slept on the comfortable mat.',
+  'The client shall pay the invoice.',
+  'The client shall pay the invoice within 30 days.',
+  'The client shall pay the invoice in full within 30 days.',
+  'The client shall pay the invoice in full within 30 business days.',
 ];
 
-// Get HTML with nested <ins> tags
 const html = deepDiffHtml(revisions);
-
-// Get CSS for intensity styling
 const css = getDefaultStyles();
 ```
 
 Output:
 ```html
-The <ins class="deep-diff">black </ins>cat <ins class="deep-diff">slept</ins>
-on the <ins class="deep-diff">comfortable </ins>mat.
+The client shall pay the invoice<ins class="deep-diff"> <ins class="deep-diff">in full
+</ins>within 30 <ins class="deep-diff">business </ins>days</ins>.
 ```
 
-Regions changed multiple times will have nested `<ins>` tags, which the default CSS styles with increasing background intensity.
+Notice the **nested `<ins>` tags** — "within 30 days" was added first, then "in full" was inserted inside that region, then "business" was added. The nesting depth indicates how many times a region has been edited. The default CSS styles these with increasing background intensity, creating a visual heatmap of editorial activity.
 
 ## API
 
