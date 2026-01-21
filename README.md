@@ -1,4 +1,10 @@
-# deep-diffs
+<div align="center">
+
+![Deep Diffs Header](images/deep-diffing.png)
+
+# Deep Diffs
+
+</div>
 
 Visualise cumulative changes across multiple text revisions. Regions that have been edited multiple times are highlighted with increasing intensity.
 
@@ -124,11 +130,11 @@ This is essentially a simplified form of [operational transformation](https://en
 ```html
 <script type="module">
   import { deepDiffHtml, getDefaultStyles } from 'https://unpkg.com/deep-diffs';
-  
+
   const style = document.createElement('style');
   style.textContent = getDefaultStyles();
   document.head.appendChild(style);
-  
+
   document.getElementById('output').innerHTML = deepDiffHtml(myRevisions);
 </script>
 ```
