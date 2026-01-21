@@ -1,5 +1,5 @@
 {
-  "name": "deep-diff-text",
+  "name": "deep-diffs",
   "version": "1.0.0",
   "description": "Visualise cumulative changes across multiple text revisions with intensity-based highlighting",
   "type": "module",
@@ -39,12 +39,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rossshannon/deep-diff-text.git"
+    "url": "git+https://github.com/rossshannon/deep-diffs.git"
   },
   "bugs": {
-    "url": "https://github.com/rossshannon/deep-diff-text/issues"
+    "url": "https://github.com/rossshannon/deep-diffs/issues"
   },
-  "homepage": "https://github.com/rossshannon/deep-diff-text#readme",
+  "homepage": "https://github.com/rossshannon/deep-diffs#readme",
   "dependencies": {
     "diff-match-patch": "^1.0.5"
   },

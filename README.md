@@ -1,10 +1,10 @@
-# deep-diff-text
+# deep-diffs
 
 Visualise cumulative changes across multiple text revisions. Regions that have been edited multiple times are highlighted with increasing intensity.
 
 ![Deep diff example](https://rossshannon.com/projects/deepdiffs/example.png)
 
-Unlike standard diff tools that compare two versions, `deep-diff-text` tracks how text regions shift, expand, and contract through an entire revision history — giving you a "heatmap" of editorial activity.
+Unlike standard diff tools that compare two versions, `deep-diffs` tracks how text regions shift, expand, and contract through an entire revision history — giving you a "heatmap" of editorial activity.
 
 ## Use Cases
 
@@ -17,13 +17,13 @@ Unlike standard diff tools that compare two versions, `deep-diff-text` tracks ho
 ## Installation
 
 ```bash
-npm install deep-diff-text
+npm install deep-diffs
 ```
 
 ## Quick Start
 
 ```javascript
-import { deepDiffHtml, getDefaultStyles } from 'deep-diff-text';
+import { deepDiffHtml, getDefaultStyles } from 'deep-diffs';
 
 const revisions = [
   'The cat sat on the mat.',
@@ -54,7 +54,7 @@ Regions changed multiple times will have nested `<ins>` tags, which the default 
 Computes diff markers without rendering.
 
 ```javascript
-import { computeDeepDiff } from 'deep-diff-text';
+import { computeDeepDiff } from 'deep-diffs';
 
 const { text, markers } = computeDeepDiff(revisions);
 
@@ -71,7 +71,7 @@ const { text, markers } = computeDeepDiff(revisions);
 Renders text with markers as HTML.
 
 ```javascript
-import { computeDeepDiff, renderWithMarkers } from 'deep-diff-text';
+import { computeDeepDiff, renderWithMarkers } from 'deep-diffs';
 
 const { text, markers } = computeDeepDiff(revisions);
 const html = renderWithMarkers(text, markers, {
@@ -89,7 +89,7 @@ const html = renderWithMarkers(text, markers, {
 Convenience function combining `computeDeepDiff` and `renderWithMarkers`.
 
 ```javascript
-import { deepDiffHtml } from 'deep-diff-text';
+import { deepDiffHtml } from 'deep-diffs';
 
 const html = deepDiffHtml(revisions, { skipEmpty: true });
 ```
@@ -99,7 +99,7 @@ const html = deepDiffHtml(revisions, { skipEmpty: true });
 Generates CSS for nested marker intensity.
 
 ```javascript
-import { getDefaultStyles } from 'deep-diff-text';
+import { getDefaultStyles } from 'deep-diffs';
 
 const css = getDefaultStyles(5);
 // Returns CSS with increasingly intense backgrounds for nested .deep-diff elements
@@ -123,7 +123,7 @@ This is essentially a simplified form of [operational transformation](https://en
 
 ```html
 <script type="module">
-  import { deepDiffHtml, getDefaultStyles } from 'https://unpkg.com/deep-diff-text';
+  import { deepDiffHtml, getDefaultStyles } from 'https://unpkg.com/deep-diffs';
   
   const style = document.createElement('style');
   style.textContent = getDefaultStyles();

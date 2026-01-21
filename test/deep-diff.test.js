@@ -1,5 +1,5 @@
 /**
- * Comprehensive test suite for deep-diff-text
+ * Comprehensive test suite for deep-diffs
  * 
  * Uses Node.js built-in test runner (node --test)
  */
