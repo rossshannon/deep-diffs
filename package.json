@@ -21,7 +21,10 @@
   "scripts": {
     "build": "rollup -c",
     "test": "node --test 'test/*.test.js'",
-    "prepublishOnly": "npm run build"
+    "typecheck": "tsc --noEmit --strict --moduleResolution node --module ESNext --target ESNext src/deep-diff.d.ts",
+    "precommit": "npm test && npm run build && npm run typecheck",
+    "prepublishOnly": "npm run build",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "keywords": [
     "diff",
@@ -50,7 +53,8 @@
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.2.3",
-    "rollup": "^4.9.0"
+    "rollup": "^4.9.0",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18.0.0"

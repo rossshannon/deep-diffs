@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Run tests
+echo "📋 Running tests..."
+npm test
+if [ $? -ne 0 ]; then
+    echo "❌ Tests failed. Commit aborted."
+    exit 1
+fi
+
+# Build (validates rollup config and source)
+echo "🔨 Building..."
+npm run build
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed. Commit aborted."
+    exit 1
+fi
+
+# Type check
+echo "🔎 Validating TypeScript types..."
+npm run typecheck
+if [ $? -ne 0 ]; then
+    echo "❌ Type check failed. Commit aborted."
+    exit 1
+fi
+
+echo "✅ All checks passed!"

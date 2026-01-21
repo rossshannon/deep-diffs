@@ -139,6 +139,28 @@ This is essentially a simplified form of [operational transformation](https://en
 </script>
 ```
 
+## TypeScript
+
+Full TypeScript support with bundled type definitions:
+
+```typescript
+import {
+  deepDiffHtml,
+  computeDeepDiff,
+  type Marker,
+  type DeepDiffResult
+} from 'deep-diffs';
+
+const result: DeepDiffResult = computeDeepDiff(['v1', 'v2', 'v3']);
+console.log(result.text);           // string
+console.log(result.markers);        // Marker[]
+
+const html: string = deepDiffHtml(['v1', 'v2'], {
+  tagName: 'mark',
+  className: 'highlight'
+});
+```
+
 ## Limitations
 
 - **Character-indexed markers** — large structural refactors (e.g., swapping paragraphs) may produce overlapping chaos. Works best for prose with localised edits.
