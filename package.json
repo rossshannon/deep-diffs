@@ -1,5 +1,5 @@
 {
-  "name": "deep-diffs",
+  "name": "@rossshannon/deep-diffs",
   "version": "1.0.0",
   "description": "Visualise cumulative changes across multiple text revisions with intensity-based highlighting",
   "type": "module",

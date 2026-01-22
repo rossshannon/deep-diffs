@@ -22,13 +22,13 @@ Unlike normal diff tools that compare two versions, `deep-diffs` can visualise w
 ## Installation
 
 ```bash
-npm install deep-diffs
+npm install @rossshannon/deep-diffs
 ```
 
 ## Quick Start
 
 ```javascript
-import { deepDiffHtml, getDefaultStyles } from 'deep-diffs';
+import { deepDiffHtml, getDefaultStyles } from '@rossshannon/deep-diffs';
 
 // A contract clause being refined over multiple revisions
 const revisions = [
@@ -57,7 +57,7 @@ Notice the **nested `<ins>` tags** — “within 30 days” was added first, the
 Computes diff markers without rendering.
 
 ```javascript
-import { computeDeepDiff } from 'deep-diffs';
+import { computeDeepDiff } from '@rossshannon/deep-diffs';
 
 const { text, markers } = computeDeepDiff(revisions);
 
@@ -74,7 +74,7 @@ const { text, markers } = computeDeepDiff(revisions);
 Renders text with markers as HTML.
 
 ```javascript
-import { computeDeepDiff, renderWithMarkers } from 'deep-diffs';
+import { computeDeepDiff, renderWithMarkers } from '@rossshannon/deep-diffs';
 
 const { text, markers } = computeDeepDiff(revisions);
 const html = renderWithMarkers(text, markers, {
@@ -92,7 +92,7 @@ const html = renderWithMarkers(text, markers, {
 Convenience function combining `computeDeepDiff` and `renderWithMarkers`.
 
 ```javascript
-import { deepDiffHtml } from 'deep-diffs';
+import { deepDiffHtml } from '@rossshannon/deep-diffs';
 
 const html = deepDiffHtml(revisions, { skipEmpty: true });
 ```
@@ -102,7 +102,7 @@ const html = deepDiffHtml(revisions, { skipEmpty: true });
 Generates CSS for nested marker intensity.
 
 ```javascript
-import { getDefaultStyles } from 'deep-diffs';
+import { getDefaultStyles } from '@rossshannon/deep-diffs';
 
 const css = getDefaultStyles(5);
 // Returns CSS with increasingly intense backgrounds for nested .deep-diff elements
@@ -126,7 +126,7 @@ This is essentially a simplified form of [operational transformation](https://en
 
 ```html
 <script type="module">
-  import { deepDiffHtml, getDefaultStyles } from 'https://unpkg.com/deep-diffs';
+  import { deepDiffHtml, getDefaultStyles } from 'https://unpkg.com/@rossshannon/deep-diffs';
 
   const style = document.createElement('style');
   style.textContent = getDefaultStyles();
@@ -146,7 +146,7 @@ import {
   computeDeepDiff,
   type Marker,
   type DeepDiffResult
-} from 'deep-diffs';
+} from '@rossshannon/deep-diffs';
 
 const result: DeepDiffResult = computeDeepDiff(['v1', 'v2', 'v3']);
 console.log(result.text);           // string
