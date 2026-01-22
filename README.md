@@ -8,9 +8,9 @@
 
 Visualise cumulative changes across multiple text revisions. Regions that have been edited multiple times are highlighted with increasing intensity.
 
-![Deep diff example](https://rossshannon.com/projects/deepdiffs/deep-diff-example.png)
+![Deep diff example](images/deep-diff-example.png)
 
-Unlike standard diff tools that compare two versions, `deep-diffs` can visualise where changes have been made in a document over time — giving you a “heatmap” of editorial activity, particularly where details are being finessed or continually revised.
+Unlike normal diff tools that compare two versions, `deep-diffs` can visualise where changes have been made in a document over time — giving you a “heatmap” of editorial activity, particularly where details are being finessed or revised repeatedly.
 
 ## Use Cases
 
@@ -49,7 +49,7 @@ The client shall pay the invoice<ins class="deep-diff"> <ins class="deep-diff">i
 </ins>within 30 <ins class="deep-diff">business </ins>days</ins>.
 ```
 
-Notice the **nested `<ins>` tags** — "within 30 days" was added first, then "in full" was inserted inside that region, then "business" was added. The nesting depth indicates how many times a region has been edited. The default CSS styles these with increasing background intensity, creating a visual heatmap of editorial activity.
+Notice the **nested `<ins>` tags** — “within 30 days” was added first, then “in full” was inserted inside that region, then “business” was added. The nesting depth indicates how many times a region has been edited. The default CSS styles these with increasing background intensity, creating a visual heatmap of editorial activity.
 
 ## API
 
@@ -161,14 +161,13 @@ const html: string = deepDiffHtml(['v1', 'v2'], {
 
 ## Limitations
 
-- **Character-indexed markers** — large structural refactors (e.g., swapping paragraphs) may produce overlapping chaos. Works best for prose with localised edits.
+- **Character-indexed markers** — This techique is tuned for tracking how details change in text over time. Large structural refactors (e.g., replacing or moving paragraphs) will lose some of the necessary context.
 - **No move detection** — if text is cut and pasted elsewhere, it's treated as delete + insert, not a move.
-- **Partial overlap edge cases** — markers at deletion boundaries may behave unexpectedly in some cases.
 
 ## Prior Art & Inspiration
 
 - [IBM History Flow](http://hint.fm/projects/historyflow/) — Wikipedia revision visualisation (author-coloured, not intensity-based)
-- [diff-match-patch](https://github.com/google/diff-match-patch) — the underlying diff engine (Google)
+- [diff-match-patch](https://github.com/google/diff-match-patch) — the underlying diff engine from Google Docs
 - [GitLens heatmaps](https://gitlens.amod.io/) — file-level age visualisation (not cumulative change count)
 
 ## History
