@@ -6,19 +6,18 @@
 
 </div>
 
-Visualise cumulative changes across multiple text revisions. Regions that have been edited multiple times are highlighted with increasing intensity.
+Visualise cumulative changes across multiple text revisions. Regions, words or characters that have been edited multiple times are highlighted with increasing intensity.
 
 ![Deep diff example](images/deep-diff-example.png)
 
-Unlike normal diff tools that compare two versions, `deep-diffs` can visualise where changes have been made in a document over time — giving you a “heatmap” of editorial activity, particularly where details are being finessed or revised repeatedly.
+Unlike normal diff tools that compare two versions, `deep-diffs` can visualise where changes have been made in a document throughout multiple revisions over time — giving you a “heatmap” of editorial activity, particularly where details are being worked onor revised repeatedly.
 
 ## Use Cases
 
 - **Legal document review** — see which clauses have been contentious across redlining rounds
-- **Collaborative writing** — identify paragraphs that keep getting tweaked
+- **Collaborative writing** — identify paragraphs that have already been finessed
 - **Wikipedia-style editing** — spot edit-war hotspots
-- **Code review** — find functions that have been patched repeatedly (code smell indicator)
-- **AI-assisted writing** — visualise which parts the human kept adjusting vs. accepted first-pass
+- **Code review** — find code blocks that have been tweaked repeatedly
 
 ## Installation
 
@@ -49,7 +48,7 @@ The client shall pay the invoice<ins class="deep-diff"> <ins class="deep-diff">i
 </ins>within 30 <ins class="deep-diff">business </ins>days</ins>.
 ```
 
-Notice the **nested `<ins>` tags** — “within 30 days” was added first, then “in full” was inserted inside that region, then “business” was added. The nesting depth indicates how many times a region has been edited. The default CSS styles these with increasing background intensity, creating a visual heatmap of editorial activity.
+Notice the **nested `<ins>` tags** — “within 30 days” was added first, then “in full” was inserted inside that region, then “business” was added. The nesting depth indicates how many times a region has been edited. The default CSS styles these with increasing background intensity, creating a visual heatmap of editorial activity. After multiple rounds of editing, a richer picture of the editorial process emerges.
 
 ## API
 
@@ -169,10 +168,11 @@ const html: string = deepDiffHtml(['v1', 'v2'], {
 - [IBM History Flow](http://hint.fm/projects/historyflow/) — Wikipedia revision visualisation (author-coloured, not intensity-based)
 - [diff-match-patch](https://github.com/google/diff-match-patch) — the underlying diff engine from Google Docs
 - [GitLens heatmaps](https://gitlens.amod.io/) — file-level age visualisation (not cumulative change count)
+- [Deep Diffs: Visually Exploring the History of a Document](https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf) — the original paper on this technique
 
 ## History
 
-Original algorithm by [Ross Shannon](https://rossshannon.com) (c. 2014). Modernised and published 2026.
+Original algorithm by [Ross Shannon](https://rossshannon.com) (2010). Modernised and published 2026.
 
 ## License
 
