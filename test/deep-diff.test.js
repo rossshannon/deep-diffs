@@ -461,6 +461,42 @@ describe('renderWithMarkers', () => {
       assert.strictEqual(html, '<ins class="deep-diff">a</ins>');
     });
 
+    it('keeps marker boundaries aligned after astral characters (emoji)', () => {
+      // '👋' is one code point but two UTF-16 code units. Marker indices
+      // are code-unit offsets, so rendering must slice by code units too.
+      const html = deepDiffHtml(['👋 hello', '👋 hello world']);
+      assert.ok(
+        html.includes('<ins class="deep-diff"> world</ins>'),
+        'marked region should be exactly " world", got: ' + html
+      );
+    });
+
+    it('renders correctly with multiple emoji before the marker', () => {
+      const html = deepDiffHtml(['🎁🎉 gifts', '🎁🎉 gifts galore']);
+      const textContent = html.replace(/<[^>]+>/g, '');
+      assert.strictEqual(textContent, '🎁🎉 gifts galore');
+      assert.ok(
+        html.includes('<ins class="deep-diff"> galore</ins>'),
+        'marked region should be exactly " galore", got: ' + html
+      );
+    });
+
+    it('produces balanced tags for partially overlapping markers', () => {
+      // A=[0,10], B=[5,15] overlap without nesting; rendered depth at each
+      // position must equal the number of covering markers.
+      const markers = [
+        { start: 0, end: 10, enabled: true },
+        { start: 5, end: 15, enabled: true }
+      ];
+      const html = renderWithMarkers('abcdefghijklmnopqrst', markers);
+      const opens = (html.match(/<ins/g) || []).length;
+      const closes = (html.match(/<\/ins>/g) || []).length;
+      assert.strictEqual(opens, 2);
+      assert.strictEqual(closes, 2);
+      const textContent = html.replace(/<[^>]+>/g, '');
+      assert.strictEqual(textContent, 'abcdefghijklmnopqrst');
+    });
+
     it('filters disabled markers', () => {
       const markers = [
         { start: 0, end: 4, enabled: false },

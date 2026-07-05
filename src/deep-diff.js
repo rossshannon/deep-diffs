@@ -198,13 +198,16 @@ export function renderWithMarkers(text, markers, options = {}) {
   // Sort: by index, then closes before opens at same position
   events.sort((a, b) => {
     if (a.index !== b.index) return a.index - b.index;
+    if (a.type === b.type) return 0;
     return a.type === 'close' ? -1 : 1;
   });
 
-  // Build output by interleaving text and tags
-  const chars = [...text];
-  const openTag = className 
-    ? `<${tagName} class="${className}">` 
+  // Build output by interleaving text and tags. Marker indices are UTF-16
+  // code-unit offsets (diff-match-patch counts code units), so slice the
+  // string directly — splitting into code points would misalign every
+  // marker after an astral character such as an emoji.
+  const openTag = className
+    ? `<${tagName} class="${className}">`
     : `<${tagName}>`;
   const closeTag = `</${tagName}>`;
 
@@ -214,7 +217,7 @@ export function renderWithMarkers(text, markers, options = {}) {
   for (const event of events) {
     // Add text up to this event
     if (event.index > pos) {
-      result += escapeHtml(chars.slice(pos, event.index).join(''));
+      result += escapeHtml(text.slice(pos, event.index));
       pos = event.index;
     }
     // Add tag
@@ -222,8 +225,8 @@ export function renderWithMarkers(text, markers, options = {}) {
   }
 
   // Add remaining text
-  if (pos < chars.length) {
-    result += escapeHtml(chars.slice(pos).join(''));
+  if (pos < text.length) {
+    result += escapeHtml(text.slice(pos));
   }
 
   return result;
