@@ -118,13 +118,32 @@ export function computeDeepDiff(revisions, options = {}) {
     addInsertionMarkers(markers, diffs, i);
   }
 
+  const finalText = texts[texts.length - 1];
+
   let finalMarkers = markers.filter(m => m.enabled);
+
+  // diff-match-patch diffs at the UTF-16 code-unit level, so a diff boundary
+  // can land between the halves of a surrogate pair (e.g. two emoji sharing
+  // a high surrogate). Widen marker edges off intra-pair positions so a
+  // marker never begins or ends mid-code-point.
+  for (const marker of finalMarkers) {
+    marker.start = snapStartToCodePoint(finalText, marker.start);
+    marker.end = snapEndToCodePoint(finalText, marker.end);
+  }
+
   if (normalize) {
     finalMarkers = normalizeMarkers(finalMarkers, normalize === true ? undefined : normalize);
   }
 
+  // Deterministic ordering: transformMarkers re-sorts its working array in
+  // place on every revision, which would otherwise leak an unstable,
+  // creation-dependent order into the public result.
+  finalMarkers.sort((a, b) =>
+    a.start - b.start || a.end - b.end || a.revision - b.revision
+  );
+
   const result = {
-    text: texts[texts.length - 1],
+    text: finalText,
     markers: finalMarkers,
     revisionCount: texts.length
   };
@@ -320,6 +339,14 @@ export function renderWithMarkers(text, markers, options = {}) {
   // Filter to only enabled markers
   let activeMarkers = markers.filter(m => m.enabled);
 
+  // Never place a tag between the halves of a surrogate pair, even for
+  // caller-supplied markers. Snapping operates on copies.
+  activeMarkers = activeMarkers.map(m => {
+    const start = snapStartToCodePoint(text, m.start);
+    const end = snapEndToCodePoint(text, m.end);
+    return start === m.start && end === m.end ? m : { ...m, start, end };
+  });
+
   // Word-boundary snapping operates on copies; never mutates the input.
   if (boundary === 'word') {
     activeMarkers = snapToWordBoundaries(text, activeMarkers);
@@ -478,6 +505,44 @@ function renderNested(text, markers, ghosts, { tagName, className }) {
 function ghostHtml(ghost, dataAttributes) {
   const attrs = dataAttributes ? ` data-revision="${ghost.revision}"` : '';
   return `<del class="deep-diff-ghost"${attrs}>${escapeHtml(ghost.text)}</del>`;
+}
+
+function isHighSurrogate(code) {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code) {
+  return code >= 0xdc00 && code <= 0xdfff;
+}
+
+/**
+ * If `start` sits on the low half of a surrogate pair, move it left onto the
+ * high half so the whole code point is included.
+ */
+function snapStartToCodePoint(text, start) {
+  if (
+    start > 0 && start < text.length &&
+    isLowSurrogate(text.charCodeAt(start)) &&
+    isHighSurrogate(text.charCodeAt(start - 1))
+  ) {
+    return start - 1;
+  }
+  return start;
+}
+
+/**
+ * If `end` (inclusive) sits on the high half of a surrogate pair, move it
+ * right onto the low half so the whole code point is included.
+ */
+function snapEndToCodePoint(text, end) {
+  if (
+    end >= 0 && end < text.length - 1 &&
+    isHighSurrogate(text.charCodeAt(end)) &&
+    isLowSurrogate(text.charCodeAt(end + 1))
+  ) {
+    return end + 1;
+  }
+  return end;
 }
 
 /** Word characters: Unicode letters, digits, and underscore. */

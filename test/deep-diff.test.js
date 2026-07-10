@@ -314,6 +314,43 @@ describe('computeDeepDiff', () => {
       assert.ok(result.markers.length >= 1);
     });
 
+    it('never splits surrogate pairs when emoji share a high surrogate', () => {
+      // 🙂 and 🙁 share the high surrogate \ud83d, so diff-match-patch
+      // factors it into the common prefix and the diff carries a lone low
+      // surrogate. Markers must widen back to the code point boundary.
+      const result = computeDeepDiff(['hi 🙂 there', 'hi 🙁 there']);
+      for (const m of result.markers) {
+        const slice = result.text.slice(m.start, m.end + 1);
+        assert.ok(!/^[\udc00-\udfff]/.test(slice), 'must not start mid-pair');
+        assert.ok(!/[\ud800-\udbff]$/.test(slice), 'must not end mid-pair');
+      }
+      const covering = result.markers.find(m =>
+        result.text.slice(m.start, m.end + 1).includes('🙁'));
+      assert.ok(covering, 'replacement emoji should be covered whole');
+    });
+
+    it('render snaps caller-supplied markers off surrogate halves', () => {
+      // Marker [4,4] covers only the low surrogate of 🙁; rendering must
+      // move the tag boundary off the intra-pair position.
+      const html = renderWithMarkers('hi 🙁 there',
+        [{ start: 4, end: 4, enabled: true }]);
+      assert.strictEqual(html, 'hi <ins class="deep-diff">🙁</ins> there');
+    });
+
+    it('returns markers in deterministic (start, end, revision) order', () => {
+      const revs = ['aaaa bbbb cccc', 'aaaa bbbb ccccXX', 'YYaaaa bbbb ccccXX'];
+      const a = computeDeepDiff(revs).markers;
+      const b = computeDeepDiff([...revs, revs[2]]).markers;
+      assert.deepStrictEqual(
+        a.map(m => [m.start, m.end, m.revision]),
+        b.map(m => [m.start, m.end, m.revision]),
+        'appending a no-op revision must not reorder markers'
+      );
+      const sorted = [...a].sort((x, y) =>
+        x.start - y.start || x.end - y.end || x.revision - y.revision);
+      assert.deepStrictEqual(a, sorted, 'markers should be sorted');
+    });
+
     it('handles newlines', () => {
       const result = computeDeepDiff(['line1', 'line1\nline2']);
       assert.ok(result.text.includes('\n'));

@@ -11,7 +11,7 @@ Status as of 2026-07-10.
 
 ---
 
-## 1. Markers can split UTF-16 surrogate pairs
+## 1. [FIXED] Markers can split UTF-16 surrogate pairs
 
 **Repro (minimal):**
 
@@ -47,6 +47,16 @@ tag boundaries off intra-pair positions).
 The randomized unicode fuzz reproduces this in roughly 2–3% of emoji-bearing
 chains (33 of ~1300 unicode chains at seed range 1–2000).
 
+**Status:** fixed (2026-07-10). `computeDeepDiff` now widens final marker
+edges off surrogate halves (`snapStartToCodePoint`/`snapEndToCodePoint`),
+and `renderWithMarkers` applies the same snapping defensively to
+caller-supplied markers (on copies). Regression tests live in
+`test/deep-diff.test.js` ("never splits surrogate pairs…") and the
+auto-detecting property test now asserts the fixed behavior. Note: deletion
+tombstone *text* can still carry a lone surrogate half when a replacement
+splits a pair (the removed low surrogate is what the diff deleted); ghosts
+render it escaped, so output remains well-formed HTML.
+
 ---
 
 ## 2. [FIXED] `revisionCount` missing from the early-exit return shape
@@ -72,7 +82,12 @@ Pinned by the `FIXED REGRESSION #2` test in `test/property.test.js`.
 
 ---
 
-## 3. (Quirk, not a bug) Returned marker order is unstable under no-op revisions
+## 3. [RESOLVED] (Quirk, not a bug) Returned marker order is unstable under no-op revisions
+
+**Status:** resolved (2026-07-10). `computeDeepDiff` now sorts the returned
+array by `(start, end, revision)` before returning, so marker order is
+deterministic and independent of no-op revisions. The diagnosis below is
+retained for history.
 
 **Repro:**
 
