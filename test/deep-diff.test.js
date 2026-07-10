@@ -329,6 +329,17 @@ describe('computeDeepDiff', () => {
       assert.ok(covering, 'replacement emoji should be covered whole');
     });
 
+    it('drops degenerate markers (end < start) instead of emitting unbalanced tags', () => {
+      // A zero-length marker used to emit its close tag before its open tag
+      // on the fast path ('ab</ins><ins class="deep-diff">c') and leak onto
+      // the following text on the dataAttributes path.
+      for (const dataAttributes of [false, true]) {
+        const html = renderWithMarkers('abc', [{ start: 2, end: 1, enabled: true }],
+          { dataAttributes });
+        assert.strictEqual(html, 'abc');
+      }
+    });
+
     it('render snaps caller-supplied markers off surrogate halves', () => {
       // Marker [4,4] covers only the low surrogate of 🙁; rendering must
       // move the tag boundary off the intra-pair position.
@@ -847,6 +858,22 @@ describe('deletion tombstones (trackDeletions)', () => {
     ]);
   });
 
+  it('never leaves a tombstone point between the halves of a surrogate pair', () => {
+    // 🙂 and 🙃 share the high surrogate \ud83d, so the diff deletes/inserts
+    // lone low surrogates and the raw deletion point lands mid-pair in the
+    // final text. The point must snap left, in front of the whole emoji.
+    const result = computeDeepDiff(['x 🙂 y', 'x 🙃 y'], { trackDeletions: true });
+    for (const d of result.deletions) {
+      const before = result.text.charCodeAt(d.index - 1);
+      const at = result.text.charCodeAt(d.index);
+      assert.ok(
+        !(before >= 0xd800 && before <= 0xdbff && at >= 0xdc00 && at <= 0xdfff),
+        `tombstone index ${d.index} sits between surrogate halves`
+      );
+    }
+    assert.strictEqual(result.deletions[0].index, 2); // before the 🙃, not inside it
+  });
+
 });
 
 // ============================================================================
@@ -902,6 +929,22 @@ describe('renderWithMarkers renderDeletions', () => {
       renderDeletions: [{ index: 999, text: 'x', revision: 1 }]
     });
     assert.strictEqual(html, 'ab<del class="deep-diff-ghost">x</del>');
+  });
+
+  it('never renders a ghost between the halves of a surrogate pair', () => {
+    // Caller-supplied tombstone whose point sits inside 🙃 (indices 2..3):
+    // the <del> must move in front of the pair, on both render paths.
+    for (const dataAttributes of [false, true]) {
+      const html = renderWithMarkers('x 🙃 y', [], {
+        renderDeletions: [{ index: 3, text: '\ude42', revision: 1 }],
+        dataAttributes
+      });
+      assert.ok(html.includes('🙃'), 'pair must stay intact: ' + JSON.stringify(html));
+    }
+    // End-to-end: shared high surrogate replacement via deepDiffHtml
+    const html = deepDiffHtml(['x 🙂 y', 'x 🙃 y'], { renderDeletions: true });
+    assert.ok(html.includes('🙃'), 'pair must stay intact: ' + JSON.stringify(html));
+    assert.ok(html.includes('deep-diff-ghost'), 'ghost must still render');
   });
 
   it('empty renderDeletions array leaves output byte-identical to default', () => {

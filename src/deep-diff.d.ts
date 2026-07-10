@@ -34,7 +34,8 @@ export interface Marker {
  * deletion: shifted by earlier inserts/deletes, or collapsed to the deletion
  * point when a later deletion swallows them. Multiple tombstones may share
  * an index ("stacking"); they are sorted by (index, revision) so ghosts
- * render in chronological order.
+ * render in chronological order. Points that would fall between the halves
+ * of a surrogate pair are snapped left, in front of the whole code point.
  */
 export interface Tombstone {
   /** Zero-width position in final-text coordinates */

@@ -149,6 +149,12 @@ export function computeDeepDiff(revisions, options = {}) {
   };
 
   if (deletions) {
+    // Like markers, tombstone points can land between the halves of a
+    // surrogate pair (diff-match-patch splits pairs). Snap such points left,
+    // in front of the whole code point, so ghosts never split a pair.
+    for (const tombstone of deletions) {
+      tombstone.index = snapStartToCodePoint(finalText, tombstone.index);
+    }
     deletions.sort((a, b) => a.index - b.index || a.revision - b.revision);
     result.deletions = deletions;
   }
@@ -336,8 +342,10 @@ export function renderWithMarkers(text, markers, options = {}) {
     renderDeletions = null
   } = options;
 
-  // Filter to only enabled markers
-  let activeMarkers = markers.filter(m => m.enabled);
+  // Filter to only enabled markers. Degenerate markers (end < start, i.e.
+  // zero length) are dropped too: the event-based fast path would otherwise
+  // emit their close tag before their open tag — unbalanced HTML.
+  let activeMarkers = markers.filter(m => m.enabled && m.end >= m.start);
 
   // Never place a tag between the halves of a surrogate pair, even for
   // caller-supplied markers. Snapping operates on copies.
@@ -355,7 +363,10 @@ export function renderWithMarkers(text, markers, options = {}) {
   const ghosts = Array.isArray(renderDeletions)
     ? renderDeletions
         .map(g => ({
-          index: Math.max(0, Math.min(g.index, text.length)),
+          // Clamp into the text, then snap off intra-surrogate-pair points
+          // (defensively, for caller-supplied tombstones) so a ghost never
+          // splits a code point.
+          index: snapStartToCodePoint(text, Math.max(0, Math.min(g.index, text.length))),
           text: String(g.text ?? ''),
           revision: g.revision ?? 0
         }))

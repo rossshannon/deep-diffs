@@ -132,12 +132,50 @@ function findRepoRoot(fileAbs) {
 }
 
 /**
+ * Undo git's C-style path quoting (`"caf\303\251.txt"`), which git applies
+ * in --name-only output to paths with non-ASCII or special characters.
+ * Escapes are byte-level, so decode to bytes first and re-read as UTF-8.
+ */
+function unquoteGitPath(p) {
+  if (p.length < 2 || !p.startsWith('"') || !p.endsWith('"')) return p;
+  const src = Buffer.from(p.slice(1, -1), 'utf8');
+  const esc = { 97: 7, 98: 8, 102: 12, 110: 10, 114: 13, 116: 9, 118: 11, 92: 92, 34: 34 }; // a b f n r t v \ "
+  const out = [];
+  for (let i = 0; i < src.length; i++) {
+    const b = src[i];
+    if (b === 92 /* backslash */ && i + 1 < src.length) {
+      const c = src[i + 1];
+      if (c >= 48 && c <= 55) { // \ooo octal byte
+        let val = 0;
+        let j = i + 1;
+        while (j < src.length && j - i <= 3 && src[j] >= 48 && src[j] <= 55) {
+          val = val * 8 + (src[j] - 48);
+          j++;
+        }
+        out.push(val);
+        i = j - 1;
+        continue;
+      }
+      if (esc[c] !== undefined) {
+        out.push(esc[c]);
+        i++;
+        continue;
+      }
+    }
+    out.push(b);
+  }
+  return Buffer.from(out).toString('utf8');
+}
+
+/**
  * Walk the log for a file (following renames). Returns commits oldest-first:
  * [{ sha, author, date, subject, path }]
  */
 function fileHistory(repoRoot, relPath, since) {
+  // NUL field separators: author names and subjects may contain tabs (git
+  // permits interior tabs in idents), but neither can contain NUL.
   const logArgs = [
-    'log', '--follow', '--format=%H%x09%an%x09%aI%x09%s',
+    'log', '--follow', '--format=%H%x00%an%x00%aI%x00%s',
   ];
   if (since) logArgs.push(`--since=${since}`);
   logArgs.push('--', relPath);
@@ -148,16 +186,16 @@ function fileHistory(repoRoot, relPath, since) {
   const commits = [];
   for (const line of res.stdout.split('\n')) {
     if (!line.trim()) continue;
-    const parts = line.split('\t');
-    const [sha, author, date] = parts;
-    const subject = parts.slice(3).join('\t'); // subjects may contain tabs
+    const [sha, author, date, subject] = line.split('\0');
     if (!/^[0-9a-f]{40}$/.test(sha)) continue;
     commits.push({ sha, author, date, subject, path: relPath });
   }
   commits.reverse(); // oldest first
 
   // Resolve the file's historical path per commit (renames via --follow).
-  const nameArgs = ['log', '--follow', '--name-only', '--format=%%%H'];
+  // core.quotePath=false keeps non-ASCII path bytes raw; unquoteGitPath
+  // below handles any paths git still C-quotes (quotes, control chars).
+  const nameArgs = ['-c', 'core.quotePath=false', 'log', '--follow', '--name-only', '--format=%%%H'];
   if (since) nameArgs.push(`--since=${since}`);
   nameArgs.push('--', relPath);
   const nameRes = git(nameArgs, repoRoot);
@@ -171,8 +209,8 @@ function fileHistory(repoRoot, relPath, since) {
       if (m) {
         current = bySha.get(m[1]) || null;
       } else if (current) {
-        current.path = t; // path of the file as of that commit
-        current = null;   // only the first (and only) path per block
+        current.path = unquoteGitPath(t); // path of the file as of that commit
+        current = null;                   // only the first (and only) path per block
       }
     }
   }
