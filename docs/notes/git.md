@@ -1,6 +1,6 @@
 # deep-diffs-git
 
-`bin/deep-diffs-git.js` turns a file's git history into a self-contained deep-diff HTML report — the CHI 2010 technique applied to any prose file in a repo (READMEs, docs, ADRs, blog posts).
+`bin/deep-diffs-git.js` turns a file's git history into a self-contained deep-diff HTML report — the AVI 2010 technique applied to any prose file in a repo (READMEs, docs, ADRs, blog posts).
 
 ## Usage
 

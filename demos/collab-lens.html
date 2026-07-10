@@ -1,544 +1,410 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Draft Archaeology — a Deep Diffs demo</title>
-<meta name="description" content="A cinematic replay of a document being written: revision history plays back like film while Deep Diffs heat accumulates where the writer kept circling.">
+<title>Collaboration Lens — deep diffs, with authors</title>
+<!--
+  Collaboration Lens
+  Deep diffs (Shannon, Quigley & Nixon, AVI 2010) fused with author-coloured history
+  (IBM History Flow). Three lenses over one multi-author document:
+    1 Heat       — intensity = edit depth (classic deep diffs)
+    2 Author     — hue = who introduced the current wording
+    3 Consensus  — hue = who touched it last, intensity = edit depth
+
+  Completely self-contained: diff-match-patch (Apache-2.0, Google) is
+  inlined below. No network access required; works from file://.
+-->
 <style>
-/* ============================================================
-   Draft Archaeology — theme tokens
-   Light is the default; dark wins either via prefers-color-scheme
-   (unless the user forced light) or via an explicit [data-theme].
-   ============================================================ */
-:root {
-  --bg: #eee8dd;
-  --bg-deep: #e6dfd1;
-  --paper: #fbf8f1;
-  --ink: #2a241b;
-  --muted: #857964;
-  --faint: #a2967f;
-  --line: #d9d0bd;
-  --line-strong: #c4b89f;
-  --accent: #b4530f;
-  --accent-ink: #8f3f08;
-  --flash: rgba(255, 199, 92, 0.95);
-  --del: #a63c2c;
-  --del-bg: rgba(166, 60, 44, 0.08);
-  --btn-bg: #f6f1e6;
-  --btn-ink: #4c4232;
-  --shadow: 0 1px 2px rgba(58, 47, 28, 0.08), 0 12px 40px -12px rgba(58, 47, 28, 0.25);
-  --overlay: rgba(238, 232, 221, 0.88);
-  --tick-glow: 255, 149, 43;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #151210;
-    --bg-deep: #0f0d0b;
-    --paper: #252017;
-    --ink: #e9e1d0;
-    --muted: #9a9080;
-    --faint: #6f6758;
-    --line: #3b3426;
-    --line-strong: #4a4232;
-    --accent: #e2933d;
-    --accent-ink: #f0b46a;
-    --flash: rgba(255, 191, 82, 0.8);
-    --del: #d97f6d;
-    --del-bg: rgba(217, 127, 109, 0.1);
-    --btn-bg: #2a251c;
-    --btn-ink: #d5cbb8;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 44px -12px rgba(0, 0, 0, 0.6);
-    --overlay: rgba(23, 20, 16, 0.88);
-    --tick-glow: 255, 166, 66;
+  /* ================= theme tokens =================
+     Author hues are Okabe-Ito-adjacent, validated for CVD separation
+     (worst adjacent deutan dE 40+) and stepped per theme.
+     Triplets are space-separated so they compose as rgb(var(--x) / a). */
+  :root {
+    --bg: #f7f6f3;
+    --surface: #fdfdfc;
+    --ink: #1c1b19;
+    --ink-2: #52514e;
+    --muted: #8a8781;
+    --line: #e3e1da;
+    --shadow: 0 1px 2px rgba(20, 18, 12, .05), 0 8px 28px rgba(20, 18, 12, .06);
+    --au0: 42 120 214;   /* Priya  — blue    #2a78d6 */
+    --au1: 222 141 0;    /* Marcus — amber   #de8d00 */
+    --au2: 214 84 138;   /* Sofia  — magenta #d6548a */
+    --au3: 0 131 0;      /* Devon  — green   #008300 */
+    --heat: 217 89 38;   /* heat lens hue    #d95926 */
+    --ascale: 1;         /* global multiplier on tint alpha */
+    --focus: #2a78d6;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e0e0d;
+      --surface: #1b1b19;
+      --ink: #ece9e2;
+      --ink-2: #c3c1b7;
+      --muted: #8f8d85;
+      --line: #2e2d2a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px rgba(0, 0, 0, .35);
+      --au0: 87 152 233;   /* #5798e9 */
+      --au1: 209 138 10;   /* #d18a0a */
+      --au2: 224 105 154;  /* #e0699a */
+      --au3: 63 164 63;    /* #3fa43f */
+      --heat: 235 118 70;  /* #eb7646 */
+      --ascale: .92;
+      --focus: #5798e9;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e0e0d;
+    --surface: #1b1b19;
+    --ink: #ece9e2;
+    --ink-2: #c3c1b7;
+    --muted: #8f8d85;
+    --line: #2e2d2a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px rgba(0, 0, 0, .35);
+    --au0: 87 152 233;
+    --au1: 209 138 10;
+    --au2: 224 105 154;
+    --au3: 63 164 63;
+    --heat: 235 118 70;
+    --ascale: .92;
+    --focus: #5798e9;
     color-scheme: dark;
   }
-}
-:root[data-theme="dark"] {
-  --bg: #151210;
-  --bg-deep: #0f0d0b;
-  --paper: #252017;
-  --ink: #e9e1d0;
-  --muted: #9a9080;
-  --faint: #6f6758;
-  --line: #3b3426;
-  --line-strong: #4a4232;
-  --accent: #e2933d;
-  --accent-ink: #f0b46a;
-  --flash: rgba(255, 191, 82, 0.8);
-  --del: #d97f6d;
-  --del-bg: rgba(217, 127, 109, 0.1);
-  --btn-bg: #2a251c;
-  --btn-ink: #d5cbb8;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 44px -12px rgba(0, 0, 0, 0.6);
-  --overlay: rgba(23, 20, 16, 0.88);
-  --tick-glow: 255, 166, 66;
-  color-scheme: dark;
-}
 
-/* ============================================================ Base */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; background: var(--bg-deep); }
-body {
-  min-height: 100%;
-  background: radial-gradient(120% 90% at 50% 0%, var(--bg) 55%, var(--bg-deep)) fixed;
-  color: var(--ink);
-  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-a { color: var(--accent); text-underline-offset: 2px; }
-a:hover { color: var(--accent-ink); }
-button, select {
-  font: inherit;
-  color: var(--btn-ink);
-  background: var(--btn-bg);
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  cursor: pointer;
-}
-button:hover, select:hover { border-color: var(--accent); }
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-::selection { background: var(--flash); color: #2a241b; }
+  /* ================= base ================= */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    transition: background-color .25s ease, color .25s ease;
+    padding: clamp(16px, 3vw, 40px);
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  a { color: inherit; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+  a:hover { text-decoration-color: currentColor; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 
-.app {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 28px 24px 40px;
-}
+  /* ================= header ================= */
+  header h1 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: clamp(1.6rem, 3.2vw, 2.15rem);
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 0 0 .35rem;
+  }
+  header .sub {
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0 0 .4rem;
+  }
+  header .credit {
+    color: var(--muted);
+    font-size: .82rem;
+    margin: 0 0 1.1rem;
+  }
 
-/* ============================================================ Header */
-header { text-align: center; margin-bottom: 18px; }
-.kicker {
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-h1 {
-  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-  font-weight: 500;
-  font-size: clamp(28px, 4.5vw, 38px);
-  letter-spacing: -0.01em;
-  margin: 3px 0 8px;
-}
-.lede {
-  max-width: 74ch;
-  margin: 0 auto;
-  color: var(--muted);
-  font-size: 13.5px;
-  text-wrap: balance;
-}
-.toolbar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  margin-top: 14px;
-  flex-wrap: wrap;
-}
-.toolbar label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--muted);
-}
-select { padding: 6px 10px; }
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  padding: 0;
-}
-.icon-btn svg { width: 16px; height: 16px; fill: currentColor; }
+  /* ================= toolbar ================= */
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    margin-bottom: 18px;
+  }
+  .seg {
+    display: inline-flex; padding: 3px; gap: 2px;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+  }
+  .seg button {
+    border: 0; background: transparent; cursor: pointer;
+    padding: 5px 13px; border-radius: 6px;
+    color: var(--ink-2); font-weight: 500; font-size: .88rem;
+    display: inline-flex; align-items: baseline; gap: 7px;
+    transition: background-color .2s ease, color .2s ease;
+  }
+  .seg button kbd {
+    font: 600 .66rem/1.4 system-ui, sans-serif;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 3px; padding: 0 4px;
+    background: var(--surface);
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--surface); color: var(--ink);
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
+  }
+  .seg button:hover:not([aria-pressed="true"]) { color: var(--ink); }
+  .toolbar .spacer { flex: 1; }
+  .ghost-btn {
+    border: 1px solid var(--line); background: transparent; cursor: pointer;
+    border-radius: 8px; padding: 6px 12px; font-size: .85rem; color: var(--ink-2);
+    transition: border-color .2s ease, color .2s ease;
+  }
+  .ghost-btn:hover { color: var(--ink); border-color: var(--muted); }
+  .ghost-btn[aria-pressed="true"] {
+    color: var(--ink); border-color: var(--muted);
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+  }
 
-/* ============================================================ Stage */
-.stage { position: relative; }
-.page-wrap {
-  position: relative;
-  display: flex;
-  gap: 14px;
-  align-items: stretch;
-}
-.page {
-  flex: 1;
-  min-width: 0;
-  height: min(52vh, 540px);
-  overflow-y: auto;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  box-shadow: var(--shadow);
-  padding: clamp(24px, 4vw, 40px) clamp(24px, 6vw, 64px);
-  scroll-behavior: smooth;
-}
-.page-inner {
-  max-width: 65ch;
-  margin: 0 auto;
-  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
-  font-size: 17px;
-  line-height: 1.85;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-}
-/* Heat classes .d1–.d8 are generated at runtime (single source of truth
-   shared with the strata canvas). Marker spans get soft rounded caps. */
-.hd { border-radius: 3px; padding: 0.08em 0; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  /* ================= layout ================= */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+  }
 
-/* Newly inserted text: fade in with a bright flash that settles into
-   its heat colour (the implicit 100% keyframe = the element's own style). */
-.born { animation: bornIn var(--dur, 420ms) ease-out backwards; }
-@keyframes bornIn {
-  0%  { opacity: 0; background-color: var(--flash); }
-  45% { opacity: 1; background-color: var(--flash); }
-}
-/* Deleted text: a struck-through ghost that fades, then collapses. */
-.ghost {
-  color: var(--del);
-  background: var(--del-bg);
-  text-decoration: line-through;
-  text-decoration-thickness: 1px;
-  border-radius: 3px;
-  animation: ghostOut var(--dur, 420ms) ease-in forwards;
-}
-@keyframes ghostOut {
-  0%   { opacity: 0.9; }
-  55%  { opacity: 0.4; font-size: 1em; }
-  100% { opacity: 0; font-size: 0.02em; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .born { animation: none; }
-  .ghost { display: none; }
-  .page { scroll-behavior: auto; }
-}
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    transition: background-color .25s ease, border-color .25s ease;
+  }
 
-/* Strata panel: the core sample */
-.strata-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 40px;
-  flex: none;
-}
-#strata {
-  width: 26px;
-  flex: 1;
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  background: var(--paper);
-  cursor: pointer;
-  box-shadow: var(--shadow);
-}
-.strata-label {
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--faint);
-  writing-mode: vertical-rl;
-  user-select: none;
-}
+  /* ================= timeline ================= */
+  .timeline { padding: 12px 18px 10px; margin-bottom: 16px; }
+  .timeline .tl-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    font-size: .78rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em; font-weight: 600;
+  }
+  .timeline .tl-status { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ink-2); }
+  .dots { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 0 4px; }
+  .dot {
+    width: 17px; height: 17px; border-radius: 50%;
+    border: 2px solid rgb(var(--dc));
+    background: rgb(var(--dc));
+    cursor: pointer; padding: 0; flex: none;
+    transition: transform .15s ease, background-color .2s ease, box-shadow .2s ease;
+  }
+  .dot:hover { transform: scale(1.25); }
+  .dot.future { background: transparent; opacity: .55; }     /* after scrub point */
+  .dot[aria-current="true"] {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px rgb(var(--dc));
+  }
 
-/* ============================================================ Caption */
-.caption-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 10px;
-  min-height: 30px;
-  margin-top: 16px;
-}
-.rev-badge {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  border: 1px solid var(--line-strong);
-  background: var(--btn-bg);
-  border-radius: 99px;
-  padding: 2px 9px;
-  flex: none;
-}
-#caption {
-  font-family: Georgia, serif;
-  font-style: italic;
-  font-size: 15px;
-  color: var(--muted);
-  transition: opacity 160ms ease;
-}
+  /* ================= document ================= */
+  .doc-card { padding: clamp(22px, 4vw, 44px) clamp(22px, 4.5vw, 52px); }
+  .doc {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 1.08rem; line-height: 1.85;
+    max-width: 65ch;
+    margin: 0 auto;
+  }
+  .doc p { margin: 0 0 1.25em; }
+  .doc p:last-child { margin-bottom: 0; }
+  .doc .run {
+    border-radius: 3px;
+    padding: .07em 0;
+    transition: background-color .25s ease, opacity .25s ease;
+    background-color: transparent;
+  }
+  /* author hue lookup for run birth (b) and last-touch (t) */
+  .b0 { --bc: var(--au0); } .b1 { --bc: var(--au1); } .b2 { --bc: var(--au2); } .b3 { --bc: var(--au3); }
+  .t0 { --tc: var(--au0); } .t1 { --tc: var(--au1); } .t2 { --tc: var(--au2); } .t3 { --tc: var(--au3); }
+  /* the three lenses: same spans, different paint — crossfaded by the
+     background-color transition above */
+  [data-lens="heat"]      .doc .run { background-color: rgb(var(--heat) / calc(var(--al, 0) * var(--ascale))); }
+  [data-lens="author"]    .doc .run { background-color: rgb(var(--bc, var(--heat)) / calc(var(--al, 0) * var(--ascale))); }
+  [data-lens="consensus"] .doc .run { background-color: rgb(var(--tc, var(--heat)) / calc(var(--al, 0) * var(--ascale))); }
+  /* contributor-chip hover: dim everything that isn't theirs */
+  .doc[data-hl] .run { opacity: .22; }
+  .doc[data-hl="0"] .run.b0, .doc[data-hl="1"] .run.b1,
+  .doc[data-hl="2"] .run.b2, .doc[data-hl="3"] .run.b3 { opacity: 1; }
+  .run.flash { animation: flashring 1.6s ease-out 1; }
+  @keyframes flashring {
+    0%   { box-shadow: 0 0 0 3px rgb(var(--heat) / .9); }
+    100% { box-shadow: 0 0 0 3px rgb(var(--heat) / 0); }
+  }
 
-/* ============================================================ Scrubber */
-.scrubber {
-  position: relative;
-  height: 40px;
-  margin: 6px 8px 2px;
-  touch-action: none;
-}
-.scrub-track {
-  position: absolute;
-  left: 0; right: 0; top: 50%;
-  height: 3px;
-  transform: translateY(-50%);
-  background: var(--line);
-  border-radius: 2px;
-}
-.scrub-fill {
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  background: var(--accent);
-  border-radius: 2px;
-  opacity: 0.75;
-  transition: width 240ms ease;
-}
-.tick {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 5px;
-  height: 16px;
-  padding: 0;
-  border-radius: 3px;
-  border: none;
-  background: var(--line-strong);
-  transition: height 160ms ease, background-color 160ms ease;
-}
-.tick:hover { height: 22px; background: var(--accent); }
-.tick.past { background: var(--accent); opacity: 0.65; }
-.tick.current {
-  height: 24px;
-  width: 7px;
-  background: var(--accent);
-  opacity: 1;
-}
+  /* ================= rail ================= */
+  .rail { display: grid; gap: 12px; }
+  .rail .card { padding: 13px 15px; }
+  .rail h2 {
+    margin: 0 0 10px; font-size: .78rem; font-weight: 650;
+    text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+  }
 
-/* ============================================================ Controls */
-.controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
-.ctl {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  padding: 0;
-}
-.ctl svg { width: 15px; height: 15px; fill: currentColor; }
-.ctl:disabled { opacity: 0.35; cursor: default; }
-.ctl:disabled:hover { border-color: var(--line-strong); }
-#play {
-  width: 48px;
-  height: 48px;
-  background: var(--accent);
-  border-color: transparent;
-  color: #fff8ee;
-}
-#play:hover { filter: brightness(1.08); }
-#play svg { width: 18px; height: 18px; }
-.counter {
-  font-variant-numeric: tabular-nums;
-  font-size: 12.5px;
-  color: var(--muted);
-  min-width: 52px;
-  text-align: center;
-}
-.hint {
-  text-align: center;
-  margin-top: 18px;
-  font-size: 11.5px;
-  color: var(--faint);
-}
-kbd {
-  font: 10.5px/1 ui-monospace, monospace;
-  border: 1px solid var(--line-strong);
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  padding: 2px 5px;
-  background: var(--btn-bg);
-}
+  /* lens note (crossfades between the three descriptions) */
+  .lens-note { position: relative; }
+  .lens-note .note {
+    grid-area: 1 / 1;
+    font-size: .86rem; color: var(--ink-2);
+    opacity: 0; transition: opacity .25s ease;
+  }
+  .lens-note .notes { display: grid; }
+  [data-lens="heat"]      .note.n-heat,
+  [data-lens="author"]    .note.n-author,
+  [data-lens="consensus"] .note.n-consensus { opacity: 1; }
+  .note .hint { color: var(--muted); font-size: .78rem; display: block; margin-top: 6px; }
+  .depth-scale { display: flex; align-items: center; gap: 4px; margin-top: 9px; }
+  .depth-scale i {
+    width: 26px; height: 12px; border-radius: 3px;
+    background: rgb(var(--heat) / calc(var(--dsa) * var(--ascale)));
+  }
+  .depth-scale .ds-label { font-size: .72rem; color: var(--muted); margin-left: 4px; }
 
-/* ============================================================ Summary overlay */
-.summary {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--overlay);
-  backdrop-filter: blur(3px);
-  border-radius: 4px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 500ms ease;
-  z-index: 3;
-}
-.summary.show { opacity: 1; pointer-events: auto; }
-.summary-card {
-  max-width: 480px;
-  margin: 20px;
-  padding: 30px 34px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  box-shadow: var(--shadow);
-  text-align: center;
-  transform: translateY(10px);
-  transition: transform 500ms ease;
-}
-.summary.show .summary-card { transform: none; }
-.summary-card h2 {
-  font-family: Georgia, serif;
-  font-weight: 500;
-  font-size: 21px;
-  margin-bottom: 4px;
-}
-.summary-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
-.stats {
-  display: flex;
-  justify-content: center;
-  gap: 26px;
-  margin-bottom: 18px;
-}
-.stat b {
-  display: block;
-  font-family: Georgia, serif;
-  font-size: 26px;
-  font-weight: 500;
-  color: var(--accent);
-}
-.stat span { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
-.summary blockquote {
-  font-family: Georgia, serif;
-  font-style: italic;
-  font-size: 14.5px;
-  color: var(--ink);
-  border-left: 3px solid var(--accent);
-  padding: 4px 0 4px 14px;
-  margin: 0 0 6px;
-  text-align: left;
-}
-.quote-label { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
-.summary-actions { display: flex; justify-content: center; gap: 10px; }
-.summary-actions button { padding: 8px 16px; font-size: 13px; }
-#replay { background: var(--accent); color: #fff8ee; border-color: transparent; }
+  /* contributors */
+  .chip {
+    display: grid; grid-template-columns: 34px 1fr; gap: 11px; align-items: center;
+    width: 100%; text-align: left;
+    padding: 6px 8px; margin: 0 -8px; border: 0; border-radius: 9px;
+    background: transparent; cursor: pointer;
+    transition: background-color .15s ease;
+  }
+  .chip:hover, .chip.active { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .chip .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: rgb(var(--ac) / .16);
+    border: 2px solid rgb(var(--ac));
+    color: rgb(var(--ac));
+    font-weight: 700; font-size: .95rem;
+  }
+  .chip .who { min-width: 0; }
+  .chip .name { font-weight: 600; font-size: .89rem; display: flex; gap: 6px; align-items: baseline; }
+  .chip .role { color: var(--muted); font-weight: 400; font-size: .74rem; }
+  .chip .stats { color: var(--ink-2); font-size: .76rem; margin-top: 1px; }
+  .chip .stats b { font-weight: 650; color: var(--ink); }
 
-/* ============================================================ Responsive */
-@media (max-width: 720px) {
-  .app { padding: 20px 14px 32px; }
-  .page { height: 52vh; padding: 22px 20px; }
-  .page-inner { font-size: 15.5px; }
-  .strata-wrap { width: 26px; }
-  .strata-label { display: none; }
-  .stats { gap: 16px; }
-}
+  /* edit-war card */
+  .war-card { border-left: 3px solid rgb(var(--heat)); }
+  .war-meta { font-size: .8rem; color: var(--ink-2); margin: 0 0 8px; }
+  .war-meta .names b { font-weight: 650; }
+  .war-quote {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    border: 1px dashed var(--line); background: rgb(var(--heat) / .07);
+    border-radius: 8px; padding: 9px 11px;
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-style: italic; font-size: .92rem; line-height: 1.5; color: var(--ink);
+    transition: border-color .2s ease, background-color .2s ease;
+  }
+  .war-quote:hover { border-color: rgb(var(--heat)); background: rgb(var(--heat) / .13); }
+  .war-quote .go { display: block; margin-top: 6px; font: 500 .74rem/1 system-ui, sans-serif; font-style: normal; color: var(--muted); }
+  .war-empty { font-size: .84rem; color: var(--muted); font-style: italic; }
+
+  /* ================= tooltip ================= */
+  #tip {
+    position: fixed; z-index: 10; pointer-events: none;
+    max-width: 300px;
+    background: var(--ink); color: var(--bg);
+    font-size: .76rem; line-height: 1.45;
+    padding: 6px 9px; border-radius: 7px;
+    opacity: 0; transition: opacity .15s ease;
+    box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  }
+  #tip.show { opacity: .97; }
+  #tip .tt-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: rgb(var(--tt-c, var(--heat))); margin-right: 5px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    html { scroll-behavior: auto; }
+  }
 </style>
 </head>
-<body>
-<div class="app">
+<body data-lens="heat">
+<div class="wrap">
   <header>
-    <div class="kicker">A Deep Diffs demonstration</div>
-    <h1>Draft Archaeology</h1>
-    <p class="lede">
-      A document&rsquo;s revision history replays like film: text morphs revision by revision while
-      <em>deep diff</em> heat accumulates wherever the writer kept circling back. The deeper the amber,
-      the more times that passage was reworked &mdash; strata of second thoughts, after
-      <a href="https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf">Shannon, Quigley &amp; Nixon, <cite>Deep Diffs</cite> (AVI&nbsp;2010)</a>.
-    </p>
-    <div class="toolbar">
-      <label>Specimen
-        <select id="specimen" aria-label="Choose specimen document"></select>
-      </label>
-      <label>Speed
-        <select id="speed" aria-label="Playback speed">
-          <option value="0.5">0.5&times;</option>
-          <option value="1" selected>1&times;</option>
-          <option value="2">2&times;</option>
-        </select>
-      </label>
-      <button class="icon-btn" id="theme" aria-label="Toggle colour theme" title="Toggle theme">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5v11a5.5 5.5 0 0 1 0-11z"/></svg>
-      </button>
-    </div>
+    <h1>Collaboration Lens</h1>
+    <p class="sub">Deep diffs chain word-level diffs across every revision of a document, so
+    repeatedly reworked passages accumulate visible heat. This demo adds <em>who</em>:
+    every edit carries its author, fusing depth-of-editing with the author-coloured
+    view pioneered by IBM History&nbsp;Flow.</p>
+    <p class="credit">After Ross Shannon,
+      <a href="https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf">“Deep Diffs: Visually Exploring the History of a Document”</a>
+      (AVI 2010) · author colouring with a nod to
+      <a href="https://alumni.media.mit.edu/~fviegas/projects/historyflow/">IBM History Flow</a> (Viégas &amp; Wattenberg)</p>
   </header>
 
-  <main class="stage" aria-label="Playback stage">
-    <div class="page-wrap">
-      <article class="page" id="page" tabindex="0" aria-label="Document text">
-        <div class="page-inner" id="doc" aria-live="off"></div>
-      </article>
-      <div class="strata-wrap">
-        <canvas id="strata" aria-label="Core sample minimap: whole document heat, click to scroll"></canvas>
-        <span class="strata-label">core sample</span>
-      </div>
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="Lens" id="lens-seg">
+      <button data-lens-btn="heat" aria-pressed="true">Heat <kbd>1</kbd></button>
+      <button data-lens-btn="author" aria-pressed="false">Author <kbd>2</kbd></button>
+      <button data-lens-btn="consensus" aria-pressed="false">Consensus <kbd>3</kbd></button>
+    </div>
+    <div class="seg" role="group" aria-label="Specimen" id="spec-seg">
+      <button data-spec-btn="0" aria-pressed="true">Launch post</button>
+      <button data-spec-btn="1" aria-pressed="false">Wiki intro</button>
+    </div>
+    <span class="spacer"></span>
+    <button class="ghost-btn" id="theme-btn" aria-label="Toggle light or dark theme">◐ Theme</button>
+  </div>
 
-      <div class="summary" id="summary" role="dialog" aria-modal="false" aria-label="Playback summary">
-        <div class="summary-card">
-          <h2>The dig is complete</h2>
-          <div class="summary-sub" id="summary-title"></div>
-          <div class="stats">
-            <div class="stat"><b id="stat-revs">0</b><span>revisions</span></div>
-            <div class="stat"><b id="stat-depth">0</b><span>deepest stratum</span></div>
-            <div class="stat"><b id="stat-survived">0%</b><span>survives from v1</span></div>
+  <div class="layout">
+    <section>
+      <div class="card timeline">
+        <div class="tl-head">
+          <span id="tl-title">Revision history</span>
+          <span class="tl-status" id="tl-status"></span>
+        </div>
+        <div class="dots" id="dots" role="group" aria-label="Revision timeline — click a dot to scrub"></div>
+      </div>
+      <div class="card doc-card">
+        <article class="doc" id="doc" aria-live="polite"></article>
+      </div>
+    </section>
+
+    <aside class="rail">
+      <div class="card lens-note">
+        <h2>Lens</h2>
+        <div class="notes">
+          <div class="note n-heat">
+            <strong>Heat</strong> — the classic deep diff. One hue; intensity is how many
+            surviving generations of editing sit beneath each passage. Blind to who did it.
+            <span class="depth-scale" aria-hidden="true">
+              <i style="--dsa:.16"></i><i style="--dsa:.33"></i><i style="--dsa:.50"></i><i style="--dsa:.67"></i><i style="--dsa:.78"></i>
+              <span class="ds-label">depth 1 → 5+</span>
+            </span>
           </div>
-          <blockquote id="deep-quote"></blockquote>
-          <div class="quote-label">most-reworked passage</div>
-          <div class="summary-actions">
-            <button id="replay">Replay</button>
-            <button id="dismiss">Examine the strata</button>
+          <div class="note n-author">
+            <strong>Author</strong> — History-Flow style. Hue = the contributor who
+            <em>introduced</em> the current wording; strength still tracks edit depth.
+            <span class="hint" id="author-hint"></span>
+          </div>
+          <div class="note n-consensus">
+            <strong>Consensus</strong> — the fusion. Hue = who touched a passage <em>last</em>,
+            intensity = how hard it was reworked. Hot passages are contested ground, and their
+            hue shows whose wording currently holds them; a hot passage in one author’s hue
+            is an argument they won.
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="caption-row">
-      <span class="rev-badge" id="rev-badge">v1</span>
-      <span id="caption"></span>
-    </div>
+      <div class="card war-card">
+        <h2>Edit-war detector</h2>
+        <div id="war-body"></div>
+      </div>
 
-    <div class="scrubber" id="scrubber" aria-label="Revision timeline">
-      <div class="scrub-track"><div class="scrub-fill" id="scrub-fill"></div></div>
-      <div id="ticks"></div>
-    </div>
-
-    <div class="controls">
-      <button class="ctl" id="step-back" aria-label="Step back one revision" title="Step back (←)">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2h2v12H4zM13 2v12L6.5 8z"/></svg>
-      </button>
-      <button class="ctl" id="play" aria-label="Play" aria-pressed="false" title="Play/pause (space)">
-        <svg id="icon-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg>
-        <svg id="icon-pause" viewBox="0 0 16 16" aria-hidden="true" style="display:none"><path d="M3.5 2h3v12h-3zM9.5 2h3v12h-3z"/></svg>
-      </button>
-      <button class="ctl" id="step-fwd" aria-label="Step forward one revision" title="Step forward (→)">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 2h2v12h-2zM3 2v12l6.5-6z"/></svg>
-      </button>
-      <span class="counter" id="counter">1 / 1</span>
-    </div>
-
-    <p class="hint"><kbd>space</kbd> play / pause &nbsp;&middot;&nbsp; <kbd>←</kbd><kbd>→</kbd> step &nbsp;&middot;&nbsp; drag the timeline to scrub</p>
-  </main>
+      <div class="card">
+        <h2>Contributors <span style="font-weight:400;text-transform:none;letter-spacing:0">— hover to isolate</span></h2>
+        <div id="chips"></div>
+      </div>
+    </aside>
+  </div>
 </div>
 
+<div id="tip" role="presentation"></div>
+
 <script>
-/* ================================================================
-   diff-match-patch (Google, Apache-2.0) — inlined verbatim below,
-   wrapped so its CommonJS export lands in a local constant.
-   ================================================================ */
-var DiffMatchPatch = (function () {
-  var module = { exports: {} };
+/* ======================================================================
+   diff-match-patch — Copyright 2018 The diff-match-patch Authors
+   https://github.com/google/diff-match-patch — Apache License 2.0
+   Inlined verbatim below (module.exports shim provided for the browser).
+   ====================================================================== */
+var module = { exports: {} };
 /**
  * Diff Match and Patch
  * Copyright 2018 The diff-match-patch Authors.
@@ -2757,797 +2623,470 @@ module.exports['diff_match_patch'] = diff_match_patch;
 module.exports['DIFF_DELETE'] = DIFF_DELETE;
 module.exports['DIFF_INSERT'] = DIFF_INSERT;
 module.exports['DIFF_EQUAL'] = DIFF_EQUAL;
-  return module.exports;
-})();
 </script>
 
 <script>
-"use strict";
-/* ================================================================
-   Deep Diff — adapted from src/deep-diff.js (Ross Shannon's
-   algorithm). Markers track a changed region across revisions:
-   they shift, expand and contract as later edits move text around.
-   Overlapping markers = a region reworked repeatedly = deeper heat.
-   ================================================================ */
-const DIFF_DELETE = -1, DIFF_INSERT = 1, DIFF_EQUAL = 0;
+'use strict';
+(function () {
+  /* ================= deep-diff core =================
+     Ports src/deep-diff.js: markers carry the revision that created them
+     (.revision) and the most recent revision that modified their region
+     (.lastTouched). Chaining diffs across revisions makes markers nest —
+     depth = how many surviving generations of editing cover a character. */
 
-class Marker {
-  constructor(start, end, revision = 0) {
-    this.start = start;          // Inclusive char index in the *current* text
-    this.end = end;              // Inclusive
-    this.enabled = true;
-    this.revision = revision;    // Revision index that created this marker
-    this.lastTouched = revision; // Most recent revision that modified it
+  const DIFF_DELETE = -1, DIFF_INSERT = 1, DIFF_EQUAL = 0;
+
+  class Marker {
+    constructor(start, end, revision) {
+      this.start = start; this.end = end; this.enabled = true;
+      this.revision = revision; this.lastTouched = revision;
+    }
+    get length() { return this.end - this.start + 1; }
+    shift(d) { this.start += d; this.end += d; }
+    expand(d) { this.end += d; }
+    contract(d) { this.end -= d; if (this.length <= 0) this.enabled = false; }
   }
-  get length() { return this.end - this.start + 1; }
-  shift(d) { this.start += d; this.end += d; }
-  expand(d) { this.end += d; }
-  contract(d) { this.end -= d; if (this.length <= 0) this.enabled = false; }
-}
 
-/* Transform existing markers through one revision's diff ops. */
-function transformMarkers(markers, diffs, revision) {
-  markers.sort((a, b) => a.start - b.start);
-  for (const m of markers) {
-    if (!m.enabled) continue;
+  /* Shift / expand / contract existing markers through one diff set. */
+  function transformMarkers(markers, diffs, revision) {
+    markers.sort((a, b) => a.start - b.start);
+    for (const m of markers) {
+      if (!m.enabled) continue;
+      let index = 0;
+      for (const [op, text] of diffs) {
+        const len = text.length;
+        if (op === DIFF_INSERT) {
+          if (index <= m.start) m.shift(len);
+          else if (index > m.start && index <= m.end) { m.expand(len); m.lastTouched = revision; }
+          index += len;
+        } else if (op === DIFF_DELETE) {
+          const delEnd = index + len - 1;
+          if (delEnd < m.start) m.shift(-len);
+          else if (index > m.end) { /* after marker: no-op */ }
+          else if (index <= m.start && delEnd >= m.end) m.enabled = false;
+          else if (index <= m.start && delEnd < m.end) {
+            const pre = m.start - index, overlap = delEnd - m.start + 1;
+            m.shift(-pre); m.contract(overlap); m.lastTouched = revision;
+          } else if (index > m.start && delEnd >= m.end) {
+            m.contract(m.end - index + 1); m.lastTouched = revision;
+          } else { m.contract(len); m.lastTouched = revision; }
+        } else index += len; // DIFF_EQUAL
+      }
+    }
+  }
+
+  /* New marker for every insertion in this revision's diff. */
+  function addInsertionMarkers(markers, diffs, revision) {
     let index = 0;
     for (const [op, text] of diffs) {
-      const len = text.length;
+      if (op === DIFF_INSERT) { markers.push(new Marker(index, index + text.length - 1, revision)); index += text.length; }
+      else if (op === DIFF_EQUAL) index += text.length;
+    }
+  }
+
+  /* "Contested edit" = an edit op landing inside a surviving marker that
+     belongs to a different author. Counted before markers are transformed,
+     while marker coordinates still refer to the pre-edit text. */
+  function countContested(markers, diffs, rev, revs, contested) {
+    const me = revs[rev].author;
+    let index = 0;
+    for (const [op, text] of diffs) {
       if (op === DIFF_INSERT) {
-        if (index <= m.start) m.shift(len);
-        else if (index > m.start && index <= m.end) { m.expand(len); m.lastTouched = revision; }
-        index += len;
+        const p = index;
+        if (markers.some(m => m.enabled && p > m.start && p <= m.end && revs[m.revision].author !== me))
+          contested[me]++;
+        index += text.length;
       } else if (op === DIFF_DELETE) {
-        const delEnd = index + len - 1;
-        if (delEnd < m.start) m.shift(-len);
-        else if (index > m.end) { /* after marker: no-op */ }
-        else if (index <= m.start && delEnd >= m.end) m.enabled = false;
-        else if (index <= m.start && delEnd < m.end) {
-          const pre = m.start - index, overlap = delEnd - m.start + 1;
-          m.shift(-pre); m.contract(overlap); m.lastTouched = revision;
-        } else if (index > m.start && delEnd >= m.end) {
-          m.contract(m.end - index + 1); m.lastTouched = revision;
-        } else {
-          m.contract(len); m.lastTouched = revision;
+        const dEnd = index + text.length - 1;
+        if (markers.some(m => m.enabled && !(dEnd < m.start || index > m.end) && revs[m.revision].author !== me))
+          contested[me]++;
+      } else index += text.length;
+    }
+  }
+
+  /* Chain diffs across revisions[0..k]; returns final text + markers. */
+  function computeChain(revs) {
+    const dmp = new module.exports();
+    dmp.Diff_Timeout = 1; dmp.Diff_EditCost = 4;
+    const markers = [];
+    const contested = [0, 0, 0, 0];
+    for (let i = 1; i < revs.length; i++) {
+      const diffs = dmp.diff_main(revs[i - 1].text, revs[i].text);
+      dmp.diff_cleanupSemantic(diffs);
+      dmp.diff_cleanupEfficiency(diffs);
+      countContested(markers, diffs, i, revs, contested);
+      transformMarkers(markers, diffs, i);
+      addInsertionMarkers(markers, diffs, i);
+    }
+    return { text: revs[revs.length - 1].text, markers: markers.filter(m => m.enabled), contested };
+  }
+
+  /* ================= the team ================= */
+  const TEAM = [
+    { name: 'Priya Nair',  short: 'Priya',  initial: 'P', role: 'product lead' },
+    { name: 'Marcus Webb', short: 'Marcus', initial: 'M', role: 'engineering' },
+    { name: 'Sofia Reyes', short: 'Sofia',  initial: 'S', role: 'brand & comms' },
+    { name: 'Devon Park',  short: 'Devon',  initial: 'D', role: 'design' },
+  ];
+
+  /* ================= specimens =================
+     Stored as a base text plus per-revision find→replace edits and built
+     into full revision texts at load — compact, and every revision is an
+     exact, deliberate change. Authors: 0 Priya · 1 Marcus · 2 Sofia · 3 Devon */
+  function buildRevisions(base, steps) {
+    const revs = [{ author: base.author, summary: base.summary, text: base.text }];
+    let cur = base.text;
+    for (const s of steps) {
+      for (const [from, to] of s.edits) cur = cur.replace(from, to);
+      revs.push({ author: s.author, summary: s.summary, text: cur });
+    }
+    return revs;
+  }
+
+  const SPECIMENS = [
+    {
+      label: 'Launch post',
+      title: 'Announcing Lantern — a startup launch post, 14 revisions',
+      revisions: buildRevisions(
+        {
+          author: 0, summary: 'First draft of the launch post',
+          text: 'Today we are announcing Lantern, a shared home for your team’s work.\n\nLantern connects your documents, chat threads, and decisions in one searchable place, so nobody has to ask “where does that live?” twice. It works with the tools you already use, and it stays out of the way until you need it.\n\nLantern is available today for teams of up to ten people, free while we are in beta. Larger teams can join the waitlist.\n\nWe built Lantern because we were tired of watching good ideas disappear into the scroll. We hope you will come lose fewer of yours.'
+        },
+        [
+          { author: 1, summary: 'Claimed the headline — Lantern is about speed', edits: [
+            ['a shared home for your team’s work.', 'the fastest way to search every note your team has ever written.'],
+            ['until you need it.', 'until you need it. Under the hood, a local-first index keeps every search under 50 milliseconds.'],
+          ]},
+          { author: 2, summary: 'Softened the speed pitch — nobody buys “fastest”', edits: [
+            ['fastest way to search every note', 'calmest place to keep every idea'],
+            ['free while we are in beta. Larger teams', 'free while we are in beta. Early teams lock in launch pricing, and larger teams'],
+          ]},
+          { author: 1, summary: 'Speed is the differentiator — put finding back', edits: [
+            ['place to keep', 'way to instantly find'],
+          ]},
+          { author: 3, summary: 'Added the security paragraph', edits: [
+            ['join the waitlist.\n\n', 'join the waitlist.\n\nYour notes are encrypted on your device before they ever reach us. We cannot read them, and neither can anyone else.\n\n'],
+          ]},
+          { author: 2, summary: 'Too pushy still — resurface things when you need them', edits: [
+            ['instantly find', 'quietly resurface, when you need it,'],
+          ]},
+          { author: 0, summary: 'Compromise attempt: in an instant or less', edits: [
+            ['when you need it', 'in an instant or less'],
+          ]},
+          { author: 1, summary: 'An instant is vague — gave it a number', edits: [
+            ['an instant', 'fifty milliseconds'],
+            ['keeps every search under 50 milliseconds.', 'answers every search in under 50 milliseconds, even offline.'],
+          ]},
+          { author: 2, summary: 'Rewrote pricing for clarity', edits: [
+            ['Lantern is available today for teams of up to ten people, free while we are in beta. Early teams lock in launch pricing, and larger teams can join the waitlist.', 'Lantern is free for teams of up to ten people while we are in beta. Teams that join early keep launch pricing for a year; everyone else can join the waitlist.'],
+          ]},
+          { author: 3, summary: 'Polished the closing', edits: [
+            ['disappear into the scroll', 'drown in the scroll'],
+            ['We hope you will come lose fewer of yours.', 'We hope you will come and lose fewer of yours.'],
+          ]},
+          { author: 1, summary: 'Added the laptop benchmark', edits: [
+            ['even offline.', 'even offline. On a five-year-old laptop, the median query returns in 31 milliseconds.'],
+          ]},
+          { author: 0, summary: 'We are not a stopwatch — a heartbeat or less', edits: [
+            ['fifty milliseconds', 'a heartbeat'],
+          ]},
+          { author: 2, summary: 'One more pricing tighten', edits: [
+            ['keep launch pricing for a year; everyone', 'keep launch pricing for their first year; everyone'],
+          ]},
+          { author: 3, summary: 'Launch-day polish sweep', edits: [
+            ['you already use, and it stays out', 'you already use and stays out'],
+          ]},
+        ]
+      ),
+    },
+    {
+      label: 'Wiki intro',
+      title: 'Greywater Lighthouse — a wiki article intro, 8 revisions',
+      revisions: buildRevisions(
+        {
+          author: 3, summary: 'Created the article introduction',
+          text: 'The Greywater Lighthouse is a decommissioned lighthouse on the northern point of Carrick Island. Completed in 1848, it guided shipping through the Greywater Strait for more than a century before it was retired in 1968.\n\nThe tower stands 34 metres tall and is built from locally quarried granite. Its light was originally fuelled by whale oil, converted to paraffin in 1902, and finally electrified in 1931.\n\nToday the lighthouse operates as a small museum and is among the most photographed structures on the island.'
+        },
+        [
+          { author: 0, summary: 'A little colour for the closing line', edits: [
+            ['is among the most photographed structures on the island.', 'is widely regarded as the most beautiful structure in the archipelago.'],
+          ]},
+          { author: 1, summary: '“Widely regarded”? By whom — hedged the claim', edits: [
+            ['widely regarded as', 'widely regarded, at least by guidebooks, as'],
+          ]},
+          { author: 2, summary: 'Noted the preserved Fresnel lens', edits: [
+            ['electrified in 1931.', 'electrified in 1931. The original Fresnel lens is preserved in the museum’s entrance hall.'],
+          ]},
+          { author: 0, summary: 'If we are hedging, hedge generously', edits: [
+            ['by guidebooks', 'by every guidebook sold on the quay'],
+          ]},
+          { author: 3, summary: 'Added the century to the opening', edits: [
+            ['a decommissioned lighthouse', 'a decommissioned 19th-century lighthouse'],
+          ]},
+          { author: 1, summary: 'Precision: the guidebooks are sold in the gift shop', edits: [
+            ['sold on the quay', 'sold in the harbour gift shop'],
+          ]},
+          { author: 2, summary: 'It is a bookshop — signed, the compromise', edits: [
+            ['harbour gift shop', 'harbour bookshop'],
+          ]},
+        ]
+      ),
+    },
+  ];
+
+  /* ================= state ================= */
+  const state = {
+    spec: 0,                                          // which specimen
+    k: SPECIMENS[0].revisions.length - 1,             // scrub position (revision index)
+    lens: 'heat',
+  };
+
+  const $ = id => document.getElementById(id);
+  const docEl = $('doc'), dotsEl = $('dots'), chipsEl = $('chips'),
+        warEl = $('war-body'), tipEl = $('tip'), statusEl = $('tl-status');
+
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  /* depth → tint alpha (capped so text stays readable) */
+  const alphaFor = d => d <= 0 ? 0 : Math.min(0.16 + (d - 1) * 0.17, 0.78);
+
+  /* ================= view computation =================
+     Per-character attributes derived from the marker set:
+       depth  — number of nested markers (edit generations)
+       birth  — the newest marker covering the char = revision that
+                introduced its current wording
+       touch  — the latest revision that modified the region
+       mask   — bitmask of authors whose markers cover the char        */
+  function computeView() {
+    const all = SPECIMENS[state.spec].revisions;
+    const revs = all.slice(0, state.k + 1);
+    const { text, markers, contested } = computeChain(revs);
+    const n = text.length;
+    const depth = new Uint16Array(n), birth = new Uint16Array(n), touch = new Uint16Array(n), mask = new Uint8Array(n);
+    for (const m of markers) {
+      const t = Math.max(m.revision, m.lastTouched);
+      for (let c = Math.max(0, m.start); c <= Math.min(n - 1, m.end); c++) {
+        depth[c]++;
+        if (m.revision > birth[c]) birth[c] = m.revision;
+        if (t > touch[c]) touch[c] = t;
+        mask[c] |= (1 << revs[m.revision].author) | (1 << revs[t].author);
+      }
+    }
+    return { revs, text, depth, birth, touch, mask, contested };
+  }
+
+  /* Find the hottest region reworked by ≥ 2 distinct authors. */
+  function findWar(view) {
+    const { text, depth, mask } = view;
+    let best = -1, bestScore = 0;
+    for (let c = 0; c < text.length; c++) {
+      let distinct = 0;
+      for (let a = 0; a < 4; a++) if (mask[c] & (1 << a)) distinct++;
+      if (distinct < 2 || depth[c] < 2) continue;
+      const score = depth[c] * 10 + distinct;
+      if (score > bestScore) { bestScore = score; best = c; }
+    }
+    if (best < 0) return null;
+    // grow outward from the hottest chars to the whole contested clause
+    // (the surrounding contiguous depth >= 2 zone), then to word boundaries
+    let s = best, e = best;
+    while (s > 0 && depth[s - 1] >= 2 && text[s - 1] !== '\n') s--;
+    while (e < text.length - 1 && depth[e + 1] >= 2 && text[e + 1] !== '\n') e++;
+    let qs = s, qe = e;
+    while (qs > 0 && !/\s/.test(text[qs - 1])) qs--;
+    while (qe < text.length - 1 && !/[\s.,;]/.test(text[qe + 1])) qe++;
+    let m = 0;
+    for (let c = s; c <= e; c++) m |= mask[c];
+    const authors = [0, 1, 2, 3].filter(a => m & (1 << a));
+    return { s, e, qs, qe, depth: depth[best], authors, touch: view.touch[best] };
+  }
+
+  /* ================= render ================= */
+  function render() {
+    const view = computeView();
+    const { revs, text, depth, birth, touch } = view;
+    const war = findWar(view);
+    const all = SPECIMENS[state.spec].revisions;
+
+    /* --- document: group chars into runs of identical attributes --- */
+    let html = '<p>';
+    let i = 0, warAnchorPlaced = false;
+    while (i < text.length) {
+      let j = i;
+      while (j + 1 < text.length && depth[j + 1] === depth[i] && birth[j + 1] === birth[i] && touch[j + 1] === touch[i]) j++;
+      const d = depth[i];
+      const bA = revs[birth[i]].author, tA = revs[touch[i]].author;
+      const inWar = war && i >= war.s && i <= war.e;
+      const attrs = d > 0
+        ? ` data-d="${d}" data-br="${birth[i]}" data-tr="${touch[i]}" style="--al:${alphaFor(d)}"`
+        : ` data-d="0"`;
+      const cls = `run b${bA} t${tA}${inWar ? ' war' : ''}`;
+      const open = idAttr => `<span class="${cls}"${idAttr}${attrs}>`;
+      // paragraph breaks may fall inside a run: close/reopen around them
+      const pieces = text.slice(i, j + 1).split('\n\n');
+      pieces.forEach((piece, pi) => {
+        if (pi > 0) html += '</p><p>';
+        if (piece) {
+          let idAttr = '';
+          if (inWar && !warAnchorPlaced) { idAttr = ' id="war-anchor"'; warAnchorPlaced = true; }
+          html += open(idAttr) + esc(piece) + '</span>';
         }
-        /* deletions don't advance index (they exist only in the old text) */
-      } else {
-        index += len;
-      }
+      });
+      i = j + 1;
     }
-  }
-}
-
-/* Every insertion in this revision births a fresh marker. */
-function addInsertionMarkers(markers, diffs, revision) {
-  let index = 0;
-  for (const [op, text] of diffs) {
-    if (op === DIFF_INSERT) { markers.push(new Marker(index, index + text.length - 1, revision)); index += text.length; }
-    else if (op === DIFF_EQUAL) index += text.length;
-  }
-}
-
-/* ================================================================
-   Heat ramp — single source of truth for both the CSS classes
-   (.d1 … .d8) and the strata canvas. Warm amber deepening to ember.
-   ================================================================ */
-const MAX_DEPTH = 8;
-function heatColor(depth, dark) {
-  if (depth <= 0) return null;
-  const t = (Math.min(depth, MAX_DEPTH) - 1) / (MAX_DEPTH - 1);
-  const c = Math.pow(t, 1.1); // steepen: depth 1 is a whisper, deep strata glow
-  const h = (dark ? 43 : 46) - (dark ? 32 : 34) * c;
-  const s = dark ? 85 : 90;
-  const l = (dark ? 50 : 58) - (dark ? 6 : 14) * c;
-  const a = (dark ? 0.09 : 0.07) + 0.62 * c;
-  return `hsla(${h.toFixed(1)}, ${s}%, ${l.toFixed(1)}%, ${a.toFixed(3)})`;
-}
-(function injectHeatCSS() {
-  let light = "", dark = "";
-  for (let d = 1; d <= MAX_DEPTH; d++) {
-    light += `.d${d}{background-color:${heatColor(d, false)}}\n`;
-    dark  += `.d${d}{background-color:${heatColor(d, true)}}\n`;
-  }
-  /* Dark values win via the media query (unless light is forced) and
-     via the explicit [data-theme="dark"] attribute — mirroring the tokens. */
-  const darkScoped = dark.replace(/^\.d(\d)/gm, ':root[data-theme="dark"] .d$1');
-  const darkMedia = "@media (prefers-color-scheme: dark){\n" +
-    dark.replace(/^\.d(\d)/gm, ':root:not([data-theme="light"]) .d$1') + "}\n";
-  const style = document.createElement("style");
-  style.textContent = light + darkMedia + darkScoped;
-  document.head.appendChild(style);
-})();
-
-/* ================================================================
-   Specimens — hand-authored revision histories. Each revision is the
-   full text at that point plus a one-line annotation for the caption.
-   ================================================================ */
-const SPECIMENS = [
-  {
-    id: "essay",
-    label: "“His Hands” — a personal essay",
-    revisions: [
-      { note: "A skeleton first — beats, not sentences.",
-        text:
-`People always say you should write about what you know, so here is what I know.
-
-Something about the summer at the cabin. Dad teaching me to gut fish on the dock. What his hands looked like while he did it.
-
-We didn't talk much as a family. Love was instructions.
-
-The part where he hands me the knife. His face when he did it.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "The cabin paragraph gets real sentences.",
-        text:
-`People always say you should write about what you know, so here is what I know.
-
-The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since.
-
-We didn't talk much as a family. Love was instructions.
-
-The part where he hands me the knife. His face when he did it.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "“Love arrived as instruction” becomes a working idea.",
-        text:
-`People always say you should write about what you know, so here is what I know.
-
-The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-The part where he hands me the knife. His face when he did it.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "First stab at the metaphor: birds. Hmm.",
-        text:
-`People always say you should write about what you know, so here is what I know.
-
-The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since. His hands moved like birds over the fish, quick and sure.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-The part where he hands me the knife. His face when he did it.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "Second-guessing the metaphor — a surgeon instead of birds.",
-        text:
-`People always say you should write about what you know, so here is what I know.
-
-The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since. His hands moved with a surgeon's calm, quick and sure.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-The part where he hands me the knife. His face when he did it.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "The knife-handing moment gets its first real sentence.",
-        text:
-`People always say you should write about what you know, so here is what I know.
-
-The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since. His hands moved with a surgeon's calm, quick and sure.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the look he gave me.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "Second pass: the look becomes a long look.",
-        text:
-`People always say you should write about what you know, so here is what I know.
-
-The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since. His hands moved with a surgeon's calm, quick and sure.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the long look he gave me.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "Third pass — an assessing look. Deciding what, exactly?",
-        text:
-`People always say you should write about what you know, so here is what I know.
-
-The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since. His hands moved with a surgeon's calm, quick and sure.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the long, assessing look he gave me, deciding whether I was ready.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "Kills the throat-clearing intro. The cabin was always the opening.",
-        text:
-`The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since. His hands moved with a surgeon's calm, quick and sure.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the long, assessing look he gave me, deciding whether I was ready.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "Metaphor, take three: stop comparing. Just look.",
-        text:
-`The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since. Quick, I want to say. Certain. The knife moved and the lake held still and the whole morning arranged itself around the work.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the long, assessing look he gave me, deciding whether I was ready.
-
-Ending: he's gone now. I still think about his hands.` },
-      { note: "The ending gets drafted for real.",
-        text:
-`The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin. I have been trying to describe his hands ever since. Quick, I want to say. Certain. The knife moved and the lake held still and the whole morning arranged itself around the work.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the long, assessing look he gave me, deciding whether I was ready.
-
-He has been gone nine years this June. I still think about his hands every time I hold a knife.` },
-      { note: "Thirty years enter the first sentence.",
-        text:
-`The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin, and I have spent thirty years trying to write down what his hands looked like while he did it. Quick, I want to say. Certain. The knife moved and the lake held still and the whole morning arranged itself around the work.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the long, assessing look he gave me, deciding whether I was ready.
-
-He has been gone nine years this June. I still think about his hands every time I hold a knife.` },
-      { note: "Fourth pass on the look: appraising — and not whether I was ready, but whether he was.",
-        text:
-`The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin, and I have spent thirty years trying to write down what his hands looked like while he did it. Quick, I want to say. Certain. The knife moved and the lake held still and the whole morning arranged itself around the work.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the long, appraising look he gave me, deciding — I understand now — not whether I was ready but whether he was.
-
-He has been gone nine years this June. I still think about his hands every time I hold a knife.` },
-      { note: "The ending, finessed once more: hands, water, light.",
-        text:
-`The summer I turned eleven, my father taught me to gut fish on the dock behind our rented cabin, and I have spent thirty years trying to write down what his hands looked like while he did it. Quick, I want to say. Certain. The knife moved and the lake held still and the whole morning arranged itself around the work.
-
-We were not a family that explained things. Love arrived as instruction: hold it here, cut away from yourself, waste nothing. I learned the grammar of him the way you learn any first language — without noticing, and permanently.
-
-What I remember best is the moment just before he handed it over: the long, appraising look he gave me, deciding — I understand now — not whether I was ready but whether he was.
-
-He has been gone nine years this June. I still can't fillet a perch without an audience of one. Some mornings, when the light comes off the water a certain way, I hold my own hands up and look.` },
-    ],
-  },
-  {
-    id: "speech",
-    label: "“The Hinge” — a speech opening",
-    revisions: [
-      { note: "Three beats scribbled on a napkin.",
-        text:
-`Opening: something about a turning point, not an ending.
-
-Middle: the work is hard, but it is shared. Something about generations.
-
-Close with a call to begin.` },
-      { note: "A safe, forgettable first line.",
-        text:
-`My fellow citizens, we meet today at a turning point in the life of our nation.
-
-Middle: the work is hard, but it is shared. Something about generations.
-
-Close with a call to begin.` },
-      { note: "“Turning point” becomes a hinge — the image arrives.",
-        text:
-`My fellow citizens, we meet today not at an ending but at a hinge.
-
-Middle: the work is hard, but it is shared. Something about generations.
-
-Close with a call to begin.` },
-      { note: "The hinge grows doors.",
-        text:
-`My fellow citizens, we meet today not at an ending but at a hinge — the old door closing behind us, the new one not yet open.
-
-Middle: the work is hard, but it is shared. Something about generations.
-
-Close with a call to begin.` },
-      { note: "The middle finds its cadence: easy versus ours.",
-        text:
-`My fellow citizens, we meet today not at an ending but at a hinge — the old door closing behind us, the new one not yet open.
-
-I will not tell you the work will be easy. I will tell you it will be ours.
-
-Close with a call to begin.` },
-      { note: "The generations line, first pass.",
-        text:
-`My fellow citizens, we meet today not at an ending but at a hinge — the old door closing behind us, the new one not yet open.
-
-I will not tell you the work will be easy. I will tell you it will be ours. Every generation is handed a country it did not build and asked to leave it sturdier than it was found.
-
-Close with a call to begin.` },
-      { note: "Standing in the draft; no exception, no excuse.",
-        text:
-`My fellow citizens, we meet today not at an ending but at a hinge — the old door closing behind us, the new one not yet open, and all of us standing together in the draft.
-
-I will not tell you the work will be easy. I will tell you it will be ours. Every generation is handed a country it did not build and asked to leave it sturdier than it was found; ours is no exception, and no excuse.
-
-Close with a call to begin.` },
-      { note: "The close: begin with the ground, not the ribbon.",
-        text:
-`My fellow citizens, we meet today not at an ending but at a hinge — the old door closing behind us, the new one not yet open, and all of us standing together in the draft.
-
-I will not tell you the work will be easy. I will tell you it will be ours. Every generation is handed a country it did not build and asked to leave it sturdier than it was found; ours is no exception, and no excuse.
-
-So let us begin as builders do: not with the ribbon, but with the ground.` },
-    ],
-  },
-];
-
-/* ================================================================
-   Precompute snapshots: for every revision i, the text, a per-char
-   heat depth array (how many overlapping markers cover each char),
-   and the char-delta of the step that produced it (for tick glow).
-   ================================================================ */
-const dmp = new DiffMatchPatch();
-dmp.Diff_Timeout = 1;
-dmp.Diff_EditCost = 4;
-
-function diffPair(a, b) {
-  const diffs = dmp.diff_main(a, b);
-  dmp.diff_cleanupSemantic(diffs);
-  dmp.diff_cleanupEfficiency(diffs);
-  return diffs;
-}
-
-function depthsFrom(markers, len) {
-  const d = new Uint8Array(len);
-  for (const m of markers) {
-    if (!m.enabled) continue;
-    const s = Math.max(0, m.start), e = Math.min(len - 1, m.end);
-    for (let c = s; c <= e; c++) if (d[c] < MAX_DEPTH) d[c]++;
-  }
-  return d;
-}
-
-function buildSnapshots(specimen) {
-  const texts = specimen.revisions.map(r => r.text);
-  const markers = [];
-  const snaps = [{
-    text: texts[0],
-    note: specimen.revisions[0].note,
-    depths: new Uint8Array(texts[0].length),
-    delta: 0,
-  }];
-  for (let i = 1; i < texts.length; i++) {
-    const diffs = diffPair(texts[i - 1], texts[i]);
-    transformMarkers(markers, diffs, i);
-    addInsertionMarkers(markers, diffs, i);
-    let delta = 0;
-    for (const [op, t] of diffs) if (op !== DIFF_EQUAL) delta += t.length;
-    snaps.push({
-      text: texts[i],
-      note: specimen.revisions[i].note,
-      depths: depthsFrom(markers, texts[i].length),
-      delta,
-    });
-  }
-  return snaps;
-}
-
-/* ================================================================
-   Rendering
-   ================================================================ */
-const $ = id => document.getElementById(id);
-const doc = $("doc"), page = $("page"), caption = $("caption"),
-      revBadge = $("rev-badge"), counter = $("counter"),
-      ticksEl = $("ticks"), scrubFill = $("scrub-fill"), scrubber = $("scrubber"),
-      playBtn = $("play"), stepBackBtn = $("step-back"), stepFwdBtn = $("step-fwd"),
-      summaryEl = $("summary"), strata = $("strata");
-
-function escapeHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-/* Render a stretch of text as spans, one per constant-depth run. */
-function renderRuns(text, depths, offset, extraClass, delayMs) {
-  let html = "", runStart = 0;
-  const n = text.length;
-  const cls = d =>
-    (d > 0 ? `hd d${d}` : "") + (extraClass ? (d > 0 ? " " : "") + extraClass : "");
-  for (let i = 1; i <= n; i++) {
-    if (i === n || depths[offset + i] !== depths[offset + runStart]) {
-      const d = depths[offset + runStart];
-      const classes = cls(d);
-      const chunk = escapeHtml(text.slice(runStart, i));
-      if (classes) {
-        const style = delayMs ? ` style="animation-delay:${delayMs}ms"` : "";
-        html += `<span class="${classes}"${style}>${chunk}</span>`;
-      } else {
-        html += chunk;
-      }
-      runStart = i;
-    }
-  }
-  return html;
-}
-
-/* Clean (non-animated) render of a snapshot. */
-function renderClean(snap) {
-  doc.innerHTML = renderRuns(snap.text, snap.depths, 0, "", 0);
-}
-
-/* Animated render of the transition from snapshot a to snapshot b:
-   equal runs keep b's heat, insertions are "born" (flash + fade in),
-   deletions linger briefly as struck-through "ghosts". */
-function renderTransition(a, b) {
-  const diffs = diffPair(a.text, b.text);
-  let html = "", iNew = 0, bornCount = 0;
-  for (const [op, t] of diffs) {
-    if (op === DIFF_EQUAL) {
-      html += renderRuns(t, b.depths, iNew, "", 0);
-      iNew += t.length;
-    } else if (op === DIFF_INSERT) {
-      const delay = Math.min(bornCount * 40, 160);
-      bornCount++;
-      html += renderRuns(t, b.depths, iNew, "born", delay);
-      iNew += t.length;
+    html += '</p>';
+    docEl.innerHTML = html;
+
+    /* --- timeline dots --- */
+    dotsEl.innerHTML = all.map((r, ri) => {
+      const cur = ri === state.k;
+      return `<button class="dot${ri > state.k ? ' future' : ''}" style="--dc:var(--au${r.author})"` +
+             ` data-rev="${ri}" aria-current="${cur}"` +
+             ` aria-label="Revision ${ri} by ${TEAM[r.author].short}: ${esc(r.summary)}"></button>`;
+    }).join('');
+    statusEl.textContent = state.k === all.length - 1
+      ? `${SPECIMENS[state.spec].title}`
+      : `viewing r${state.k} of r${all.length - 1} — click the last dot to return`;
+
+    /* --- contributor rail --- */
+    const revsMade = [0, 0, 0, 0], surviving = [0, 0, 0, 0];
+    revs.forEach(r => revsMade[r.author]++);
+    for (let c = 0; c < text.length; c++) if (!/\s/.test(text[c])) surviving[revs[birth[c]].author]++;
+    chipsEl.innerHTML = TEAM.map((t, a) => `
+      <button class="chip" data-author="${a}" aria-label="Highlight contributions by ${t.name}">
+        <span class="avatar" style="--ac:var(--au${a})" aria-hidden="true">${t.initial}</span>
+        <span class="who">
+          <span class="name">${t.name} <span class="role">${t.role}</span></span>
+          <span class="stats"><b>${revsMade[a]}</b> rev${revsMade[a] === 1 ? '' : 's'} · <b>${surviving[a]}</b> live · <b>${view.contested[a]}</b> contested</span>
+        </span>
+      </button>`).join('');
+
+    /* --- edit-war card --- */
+    if (!war) {
+      warEl.innerHTML = '<p class="war-empty">No contested passages yet — every reworked region has a single editor so far. Scrub forward.</p>';
     } else {
-      html += `<span class="ghost">${escapeHtml(t)}</span>`;
-    }
-  }
-  doc.innerHTML = html;
-  /* Bring the first change into view if it's off-screen. Scroll only the
-     document panel itself — never the window. */
-  const first = doc.querySelector(".born, .ghost");
-  if (first) {
-    const pr = page.getBoundingClientRect(), fr = first.getBoundingClientRect();
-    if (fr.top < pr.top + 24 || fr.bottom > pr.bottom - 24) {
-      const delta = (fr.top + fr.height / 2) - (pr.top + pr.height / 2);
-      page.scrollTo({
-        top: page.scrollTop + delta,
-        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      const names = war.authors.map(a => `<b style="color:rgb(var(--au${a}))">${TEAM[a].short}</b>`).join(', ');
+      const holder = TEAM[revs[war.touch].author];
+      let quote = text.slice(war.qs, war.qe + 1).replace(/\n+/g, ' ');
+      if (quote.length > 110) quote = quote.slice(0, 107).replace(/\s+\S*$/, '') + '…';
+      warEl.innerHTML = `
+        <p class="war-meta">Most contested: depth <b>${war.depth}</b>, reworked by
+          <span class="names">${names}</span> — current wording held by <b>${holder.short}</b> (r${war.touch}).</p>
+        <button class="war-quote" id="war-jump">“${esc(quote)}”<span class="go">Click to jump to it in the document ↓</span></button>`;
+      $('war-jump').addEventListener('click', () => {
+        const anchor = $('war-anchor');
+        if (!anchor) return;
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        docEl.querySelectorAll('.run.war').forEach(el => {
+          el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+        });
       });
     }
+
+    /* author-lens hint names the original author of the untinted text */
+    $('author-hint').textContent =
+      `Untinted text survives untouched from ${TEAM[all[0].author].short}’s original draft (r0).`;
   }
-}
 
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+  /* ================= tooltip ================= */
+  let tipTarget = null;
+  function showTip(html, x, y, hue) {
+    tipEl.innerHTML = html;
+    tipEl.style.setProperty('--tt-c', hue);
+    const pad = 14, w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+    let left = x + pad, top = y + pad;
+    if (left + w > innerWidth - 8) left = x - w - pad;
+    if (top + h > innerHeight - 8) top = y - h - pad;
+    tipEl.style.left = Math.max(8, left) + 'px';
+    tipEl.style.top = Math.max(8, top) + 'px';
+    tipEl.classList.add('show');
+  }
+  const hideTip = () => { tipEl.classList.remove('show'); tipTarget = null; };
 
-/* ================================================================
-   Strata panel — the "core sample": the whole document as a vertical
-   column, y = char position, colour = current heat depth. Doubles as
-   a minimap: the light band is the visible viewport; click to scroll.
-   ================================================================ */
-function isDark() {
-  const t = document.documentElement.getAttribute("data-theme");
-  if (t === "dark") return true;
-  if (t === "light") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
-function drawStrata() {
-  const snap = snapshots[cur];
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = strata.clientWidth, cssH = strata.clientHeight;
-  if (cssW === 0 || cssH === 0) return;
-  if (strata.width !== Math.round(cssW * dpr)) strata.width = Math.round(cssW * dpr);
-  if (strata.height !== Math.round(cssH * dpr)) strata.height = Math.round(cssH * dpr);
-  const ctx = strata.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const styles = getComputedStyle(document.documentElement);
-  ctx.clearRect(0, 0, cssW, cssH);
-  ctx.fillStyle = styles.getPropertyValue("--paper").trim();
-  ctx.fillRect(0, 0, cssW, cssH);
-
-  const dark = isDark();
-  const { depths, text } = snap;
-  const len = Math.max(1, text.length);
-  for (let y = 0; y < cssH; y++) {
-    const i0 = Math.floor((y / cssH) * len);
-    const i1 = Math.max(i0 + 1, Math.ceil(((y + 1) / cssH) * len));
-    let maxd = 0;
-    for (let i = i0; i < i1 && i < len; i++) if (depths[i] > maxd) maxd = depths[i];
-    if (maxd > 0) {
-      /* Paint twice: at 1px rows the text alphas are too faint to read,
-         so the core sample doubles them for legibility. */
-      ctx.fillStyle = heatColor(maxd, dark);
-      ctx.fillRect(3, y, cssW - 6, 1);
-      ctx.fillRect(3, y, cssW - 6, 1);
+  document.addEventListener('mousemove', e => {
+    const run = e.target.closest?.('.run[data-d]');
+    const dot = e.target.closest?.('.dot');
+    const revsAll = SPECIMENS[state.spec].revisions;
+    if (dot) {
+      const ri = +dot.dataset.rev, r = revsAll[ri];
+      showTip(`<span class="tt-dot"></span><b>r${ri} · ${TEAM[r.author].short}</b> — ${esc(r.summary)}`,
+        e.clientX, e.clientY, `var(--au${r.author})`);
+      tipTarget = dot;
+      return;
     }
-  }
-
-  /* Viewport indicator: shade what's outside the visible window. */
-  const sh = page.scrollHeight, chVis = page.clientHeight;
-  if (sh > chVis + 1) {
-    const top = (page.scrollTop / sh) * cssH;
-    const h = (chVis / sh) * cssH;
-    ctx.fillStyle = dark ? "rgba(0,0,0,0.42)" : "rgba(90,75,50,0.16)";
-    ctx.fillRect(0, 0, cssW, top);
-    ctx.fillRect(0, top + h, cssW, cssH - top - h);
-    ctx.strokeStyle = styles.getPropertyValue("--accent").trim();
-    ctx.lineWidth = 1;
-    ctx.strokeRect(1, top + 0.5, cssW - 2, h - 1);
-  }
-}
-
-function strataScroll(clientY) {
-  const r = strata.getBoundingClientRect();
-  const frac = Math.min(1, Math.max(0, (clientY - r.top) / r.height));
-  page.scrollTop = frac * page.scrollHeight - page.clientHeight / 2;
-}
-strata.addEventListener("pointerdown", e => {
-  strata.setPointerCapture(e.pointerId);
-  strataScroll(e.clientY);
-});
-strata.addEventListener("pointermove", e => {
-  if (e.buttons) strataScroll(e.clientY);
-});
-
-let scrollRaf = 0;
-page.addEventListener("scroll", () => {
-  if (!scrollRaf) scrollRaf = requestAnimationFrame(() => { scrollRaf = 0; drawStrata(); });
-});
-
-/* ================================================================
-   Playback state machine
-   ================================================================ */
-let snapshots = [];       // Current specimen's precomputed snapshots
-let cur = 0;              // Current revision index
-let playing = false;
-let playTimer = 0;
-let pendingFinalize = 0;  // Timer finalising an in-flight transition
-let completedByPlayback = false;
-
-const BASE_DWELL = 2500;  // ms per revision at 1x (plus the morph itself)
-function speed() { return parseFloat($("speed").value); }
-function morphMs() { return Math.max(260, Math.round(430 / Math.sqrt(speed()))); }
-
-function goTo(idx, { animate = true } = {}) {
-  idx = Math.max(0, Math.min(snapshots.length - 1, idx));
-  if (idx === cur && doc.childNodes.length) { updateChrome(); return; }
-  /* If a morph is still settling, finalise it instantly first. */
-  if (pendingFinalize) { clearTimeout(pendingFinalize); pendingFinalize = 0; }
-  const from = cur;
-  cur = idx;
-  if (animate && from !== idx && !prefersReducedMotion()) {
-    const ms = morphMs();
-    doc.style.setProperty("--dur", ms + "ms");
-    renderTransition(snapshots[from], snapshots[idx]);
-    pendingFinalize = setTimeout(() => {
-      pendingFinalize = 0;
-      renderClean(snapshots[cur]);
-      drawStrata();
-    }, ms + 60);
-  } else {
-    renderClean(snapshots[idx]);
-  }
-  if (idx !== snapshots.length - 1) hideSummary();
-  updateChrome();
-}
-
-function stepFwd() { if (cur < snapshots.length - 1) goTo(cur + 1); }
-function stepBack() { if (cur > 0) goTo(cur - 1); }
-
-function play() {
-  if (cur >= snapshots.length - 1) { goTo(0, { animate: false }); }
-  playing = true;
-  completedByPlayback = false;
-  hideSummary();
-  updatePlayButton();
-  scheduleNext(600); // small lead-in
-}
-function pause() {
-  playing = false;
-  clearTimeout(playTimer);
-  updatePlayButton();
-}
-function scheduleNext(extra = 0) {
-  clearTimeout(playTimer);
-  playTimer = setTimeout(() => {
-    if (!playing) return;
-    if (cur < snapshots.length - 1) {
-      goTo(cur + 1);
-      if (cur === snapshots.length - 1) {
-        completedByPlayback = true;
-        playing = false;
-        updatePlayButton();
-        setTimeout(showSummary, 1100);
-      } else {
-        scheduleNext();
-      }
+    if (run && +run.dataset.d > 0) {
+      const br = +run.dataset.br, tr = +run.dataset.tr, d = +run.dataset.d;
+      const bA = revsAll[br].author, tA = revsAll[tr].author;
+      const touched = tr !== br ? ` · last touched by ${TEAM[tA].short} in r${tr}` : '';
+      showTip(`<span class="tt-dot"></span>introduced by <b>${TEAM[bA].short}</b> in r${br}${touched} · depth ${d}`,
+        e.clientX, e.clientY, `var(--au${state.lens === 'consensus' ? tA : bA})`);
+      tipTarget = run;
+      return;
     }
-  }, extra + BASE_DWELL / speed());
-}
+    if (tipTarget) hideTip();
+  });
+  document.addEventListener('mouseleave', hideTip);
+  window.addEventListener('scroll', hideTip, { passive: true });
 
-function updatePlayButton() {
-  $("icon-play").style.display = playing ? "none" : "";
-  $("icon-pause").style.display = playing ? "" : "none";
-  playBtn.setAttribute("aria-pressed", String(playing));
-  playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
-}
-
-/* ================================================================
-   Chrome: caption, badge, counter, ticks, fill, strata
-   ================================================================ */
-let captionTimer = 0;
-function updateChrome() {
-  const n = snapshots.length;
-  revBadge.textContent = "v" + (cur + 1);
-  counter.textContent = (cur + 1) + " / " + n;
-  stepBackBtn.disabled = cur === 0;
-  stepFwdBtn.disabled = cur === n - 1;
-
-  /* Cross-fade the caption. */
-  const note = snapshots[cur].note;
-  if (caption.textContent !== note) {
-    caption.style.opacity = "0";
-    clearTimeout(captionTimer);
-    captionTimer = setTimeout(() => {
-      caption.textContent = note;
-      caption.style.opacity = "1";
-    }, 160);
+  /* ================= interactions ================= */
+  function setLens(lens) {
+    state.lens = lens;
+    document.body.dataset.lens = lens;
+    document.querySelectorAll('[data-lens-btn]').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.lensBtn === lens)));
   }
+  $('lens-seg').addEventListener('click', e => {
+    const b = e.target.closest('[data-lens-btn]');
+    if (b) setLens(b.dataset.lensBtn);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === '1') setLens('heat');
+    else if (e.key === '2') setLens('author');
+    else if (e.key === '3') setLens('consensus');
+  });
 
-  scrubFill.style.width = n > 1 ? (cur / (n - 1)) * 100 + "%" : "0";
-  const ticks = ticksEl.children;
-  for (let i = 0; i < ticks.length; i++) {
-    ticks[i].classList.toggle("current", i === cur);
-    ticks[i].classList.toggle("past", i < cur);
-  }
-  drawStrata();
-}
+  $('spec-seg').addEventListener('click', e => {
+    const b = e.target.closest('[data-spec-btn]');
+    if (!b) return;
+    state.spec = +b.dataset.specBtn;
+    state.k = SPECIMENS[state.spec].revisions.length - 1;
+    document.querySelectorAll('[data-spec-btn]').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  });
 
-function buildTicks() {
-  ticksEl.innerHTML = "";
-  const n = snapshots.length;
-  const maxDelta = Math.max(1, ...snapshots.map(s => s.delta));
-  for (let i = 0; i < n; i++) {
-    const t = document.createElement("button");
-    t.className = "tick";
-    t.style.left = n > 1 ? (i / (n - 1)) * 100 + "%" : "50%";
-    const g = snapshots[i].delta / maxDelta;
-    /* Ticks glow in proportion to how much changed in that revision. */
-    if (g > 0.02) {
-      t.style.boxShadow = `0 0 ${(3 + 11 * g).toFixed(1)}px rgba(var(--tick-glow), ${(0.25 + 0.6 * g).toFixed(2)})`;
-    }
-    t.setAttribute("aria-label", `Revision ${i + 1}: ${snapshots[i].note}`);
-    t.title = `v${i + 1} — ${snapshots[i].note}`;
-    t.addEventListener("click", () => { pause(); goTo(i); });
-    ticksEl.appendChild(t);
-  }
-}
+  dotsEl.addEventListener('click', e => {
+    const dot = e.target.closest('.dot');
+    if (!dot) return;
+    state.k = +dot.dataset.rev;
+    render();
+  });
 
-/* Scrubbing by drag anywhere on the timeline. */
-let scrubbing = false;
-scrubber.addEventListener("pointerdown", e => {
-  if (e.target.classList.contains("tick")) return; // ticks handle themselves
-  scrubbing = true;
-  scrubber.setPointerCapture(e.pointerId);
-  pause();
-  scrubTo(e.clientX);
-});
-scrubber.addEventListener("pointermove", e => { if (scrubbing) scrubTo(e.clientX); });
-scrubber.addEventListener("pointerup", () => { scrubbing = false; });
-function scrubTo(clientX) {
-  const r = scrubber.getBoundingClientRect();
-  const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
-  const idx = Math.round(frac * (snapshots.length - 1));
-  if (idx !== cur) goTo(idx);
-}
+  /* chip hover / focus isolates one contributor's surviving text */
+  chipsEl.addEventListener('mouseover', e => {
+    const chip = e.target.closest('.chip');
+    if (chip) { docEl.dataset.hl = chip.dataset.author; chip.classList.add('active'); }
+  });
+  chipsEl.addEventListener('mouseout', e => {
+    const chip = e.target.closest('.chip');
+    if (chip) { delete docEl.dataset.hl; chip.classList.remove('active'); }
+  });
+  chipsEl.addEventListener('focusin', e => {
+    const chip = e.target.closest('.chip');
+    if (chip) docEl.dataset.hl = chip.dataset.author;
+  });
+  chipsEl.addEventListener('focusout', () => { delete docEl.dataset.hl; });
 
-/* ================================================================
-   Summary overlay — the credits
-   ================================================================ */
-function computeSummary() {
-  const finalSnap = snapshots[snapshots.length - 1];
-  const { text, depths } = finalSnap;
-  let untouched = 0, maxd = 0;
-  for (let i = 0; i < depths.length; i++) {
-    if (depths[i] === 0) untouched++;
-    if (depths[i] > maxd) maxd = depths[i];
-  }
-  const survived = depths.length ? Math.round((untouched / depths.length) * 100) : 100;
+  /* theme toggle — explicit choice wins over prefers-color-scheme */
+  $('theme-btn').addEventListener('click', () => {
+    const root = document.documentElement;
+    const systemDark = matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = root.dataset.theme ? root.dataset.theme === 'dark' : systemDark;
+    root.dataset.theme = isDark ? 'light' : 'dark';
+  });
 
-  /* Most reworked passage: the longest run at the deepest stratum,
-     stretched outwards to word boundaries and clamped for display. */
-  let best = { start: 0, end: 0 };
-  let runStart = -1;
-  for (let i = 0; i <= depths.length; i++) {
-    const at = i < depths.length && depths[i] === maxd && maxd > 0;
-    if (at && runStart < 0) runStart = i;
-    if (!at && runStart >= 0) {
-      if (i - runStart > best.end - best.start) best = { start: runStart, end: i };
-      runStart = -1;
-    }
-  }
-  /* Stretch the deepest run out to the sentence that contains it, so the
-     quote reads as prose rather than a lone word. */
-  let s = best.start, e = best.end;
-  while (s > 0 && !/[.!?\n]/.test(text[s - 1])) s--;
-  while (s < best.start && /[\s"“”]/.test(text[s])) s++;
-  while (e < text.length && !/[.!?\n]/.test(text[e])) e++;
-  if (e < text.length && /[.!?]/.test(text[e])) e++;
-  let quote = text.slice(s, e).replace(/\s+/g, " ").trim();
-  if (quote.length > 190) {
-    /* Clamp around the deep run if the sentence overflows. */
-    const mid = (best.start + best.end) / 2 - s;
-    const from = Math.max(0, Math.min(mid - 95, quote.length - 190));
-    quote = (from > 0 ? "…" : "") + quote.slice(from, from + 190).replace(/\s+\S*$/, "") + "…";
-  }
-  return { revisions: snapshots.length, maxDepth: maxd, survived, quote };
-}
-
-function showSummary() {
-  const s = computeSummary();
-  $("summary-title").textContent = SPECIMENS[specimenIdx].label;
-  $("stat-revs").textContent = s.revisions;
-  $("stat-depth").textContent = s.maxDepth + "×";
-  $("stat-survived").textContent = s.survived + "%";
-  $("deep-quote").textContent = "“" + s.quote + "”";
-  summaryEl.classList.add("show");
-}
-function hideSummary() { summaryEl.classList.remove("show"); }
-
-$("replay").addEventListener("click", () => { hideSummary(); goTo(0, { animate: false }); play(); });
-$("dismiss").addEventListener("click", hideSummary);
-
-/* ================================================================
-   Specimen switching, theme, keyboard, boot
-   ================================================================ */
-let specimenIdx = 0;
-function loadSpecimen(i) {
-  specimenIdx = i;
-  pause();
-  hideSummary();
-  snapshots = buildSnapshots(SPECIMENS[i]);
-  cur = 0;
-  buildTicks();
-  renderClean(snapshots[0]);
-  page.scrollTop = 0;
-  updateChrome();
-}
-
-const specimenSel = $("specimen");
-SPECIMENS.forEach((s, i) => {
-  const o = document.createElement("option");
-  o.value = i;
-  o.textContent = s.label;
-  specimenSel.appendChild(o);
-});
-specimenSel.addEventListener("change", () => loadSpecimen(parseInt(specimenSel.value, 10)));
-
-$("theme").addEventListener("click", () => {
-  document.documentElement.setAttribute("data-theme", isDark() ? "light" : "dark");
-  drawStrata();
-});
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawStrata);
-/* Repaint the canvas if the theme attribute changes by any means. */
-new MutationObserver(drawStrata).observe(document.documentElement, {
-  attributes: true, attributeFilter: ["data-theme"],
-});
-
-playBtn.addEventListener("click", () => (playing ? pause() : play()));
-stepFwdBtn.addEventListener("click", () => { pause(); stepFwd(); });
-stepBackBtn.addEventListener("click", () => { pause(); stepBack(); });
-
-window.addEventListener("keydown", e => {
-  if (e.target.closest("select, input, textarea")) return;
-  if (e.code === "Space") {
-    if (e.target.closest("button")) return; // let buttons keep native space
-    e.preventDefault();
-    playing ? pause() : play();
-  } else if (e.key === "ArrowRight") {
-    e.preventDefault(); pause(); stepFwd();
-  } else if (e.key === "ArrowLeft") {
-    e.preventDefault(); pause(); stepBack();
-  }
-});
-
-window.addEventListener("resize", drawStrata);
-
-loadSpecimen(0);
-
-/* Test hook for automated verification (harmless in normal use). */
-window.__archaeology = {
-  goTo: i => { pause(); goTo(i, { animate: false }); },
-  play, pause,
-  get state() { return { cur, playing, revisions: snapshots.length }; },
-  showSummary,
-};
+  render();
+})();
 </script>
 </body>
 </html>
