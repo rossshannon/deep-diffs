@@ -6,11 +6,13 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { 
-  computeDeepDiff, 
-  renderWithMarkers, 
-  deepDiffHtml, 
-  getDefaultStyles 
+import {
+  computeDeepDiff,
+  renderWithMarkers,
+  deepDiffHtml,
+  getDefaultStyles,
+  computeHeatSegments,
+  normalizeMarkers
 } from '../src/deep-diff.js';
 
 // ============================================================================
@@ -644,6 +646,763 @@ describe('performance', () => {
     
     assert.ok(elapsed < 5000, 'should complete in < 5s, took ' + elapsed + 'ms');
     assert.ok(result.markers.length > 0);
+  });
+
+});
+
+// ============================================================================
+// Result metadata
+// ============================================================================
+
+describe('result metadata', () => {
+
+  it('reports revisionCount for multiple revisions', () => {
+    const result = computeDeepDiff(['a', 'ab', 'abc']);
+    assert.strictEqual(result.revisionCount, 3);
+  });
+
+  it('reports revisionCount 1 for a single revision', () => {
+    const result = computeDeepDiff(['solo']);
+    assert.strictEqual(result.revisionCount, 1);
+  });
+
+  it('reports revisionCount 0 for empty input', () => {
+    const result = computeDeepDiff([]);
+    assert.strictEqual(result.revisionCount, 0);
+  });
+
+  it('counts only revisions that survive filtering', () => {
+    const result = computeDeepDiff(['a', '', 'a b']);
+    assert.strictEqual(result.revisionCount, 2);
+  });
+
+  it('records birth revision on markers (1-based)', () => {
+    const { markers } = computeDeepDiff(['hello', 'hello world']);
+    assert.strictEqual(markers[0].revision, 1);
+    assert.strictEqual(markers[0].lastTouched, 1);
+  });
+
+  it('updates lastTouched when a later revision edits the region', () => {
+    // ' world' (rev 1) is expanded by 'big ' (rev 2)
+    const { markers } = computeDeepDiff(['hello', 'hello world', 'hello big world']);
+    const worldMarker = markers.find(m => m.revision === 1);
+    assert.ok(worldMarker);
+    assert.strictEqual(worldMarker.lastTouched, 2);
+    const bigMarker = markers.find(m => m.revision === 2);
+    assert.ok(bigMarker);
+    assert.strictEqual(bigMarker.lastTouched, 2);
+  });
+
+});
+
+// ============================================================================
+// Deletion tombstones (trackDeletions)
+// ============================================================================
+
+describe('deletion tombstones (trackDeletions)', () => {
+
+  it('does not add a deletions property by default', () => {
+    const result = computeDeepDiff(['hello world', 'hello']);
+    assert.ok(!('deletions' in result));
+  });
+
+  it('returns an empty deletions array for a single revision', () => {
+    const result = computeDeepDiff(['solo'], { trackDeletions: true });
+    assert.deepStrictEqual(result.deletions, []);
+  });
+
+  it('returns an empty deletions array when nothing was deleted', () => {
+    const result = computeDeepDiff(['hello', 'hello world'], { trackDeletions: true });
+    assert.deepStrictEqual(result.deletions, []);
+  });
+
+  it('records a deletion at the end of the text', () => {
+    const result = computeDeepDiff(['hello world', 'hello'], { trackDeletions: true });
+    assert.deepStrictEqual(result.deletions, [
+      { index: 5, text: ' world', revision: 1 }
+    ]);
+  });
+
+  it('records a deletion at the beginning of the text', () => {
+    const result = computeDeepDiff(['hello world', 'world'], { trackDeletions: true });
+    assert.deepStrictEqual(result.deletions, [
+      { index: 0, text: 'hello ', revision: 1 }
+    ]);
+  });
+
+  it('records multiple deletions in one revision', () => {
+    const result = computeDeepDiff(
+      ['AA one two BB three', 'one two three'],
+      { trackDeletions: true }
+    );
+    assert.deepStrictEqual(result.deletions, [
+      { index: 0, text: 'AA ', revision: 1 },
+      { index: 8, text: 'BB ', revision: 1 }
+    ]);
+  });
+
+  it('records a replacement as tombstone at the replacement point', () => {
+    const result = computeDeepDiff(['the cat sat', 'the dog sat'], { trackDeletions: true });
+    assert.deepStrictEqual(result.deletions, [
+      { index: 4, text: 'cat', revision: 1 }
+    ]);
+    // The replacement text is a normal insertion marker
+    assert.strictEqual(result.markers.length, 1);
+    assert.strictEqual(result.text.slice(result.markers[0].start, result.markers[0].end + 1), 'dog');
+  });
+
+  it('leaves the tombstone in place when text is later inserted at the same point', () => {
+    // rev1 deletes 'two ' at index 4; rev2 inserts 'BIG ' at index 4.
+    // The tombstone stays at 4, so the ghost reads chronologically
+    // (deleted text before its replacement).
+    const result = computeDeepDiff(
+      ['one two three', 'one three', 'one BIG three'],
+      { trackDeletions: true }
+    );
+    assert.deepStrictEqual(result.deletions, [
+      { index: 4, text: 'two ', revision: 1 }
+    ]);
+  });
+
+  it('shifts tombstone right through an earlier insertion', () => {
+    // Tombstone born at index 3 in 'aa cc'; 'XX ' inserted at 0 shifts it to 6
+    const result = computeDeepDiff(
+      ['aa bb cc', 'aa cc', 'XX aa cc'],
+      { trackDeletions: true }
+    );
+    assert.deepStrictEqual(result.deletions, [
+      { index: 6, text: 'bb ', revision: 1 }
+    ]);
+  });
+
+  it('shifts tombstone left through an earlier deletion', () => {
+    // Tombstone born at index 5 in 'XX aa'; deleting 'XX ' shifts it to 2
+    const result = computeDeepDiff(
+      ['XX aa bb', 'XX aa', 'aa'],
+      { trackDeletions: true }
+    );
+    const rev1 = result.deletions.find(d => d.revision === 1);
+    assert.deepStrictEqual(rev1, { index: 2, text: ' bb', revision: 1 });
+  });
+
+  it('collapses a tombstone swallowed by a later deletion, stacking at one index', () => {
+    // rev1 deletes 'cc ' (tombstone at 6 in 'aa bb dd');
+    // rev2 deletes ' bb dd' [2..7], which straddles index 6 -> collapse to 2
+    const result = computeDeepDiff(
+      ['aa bb cc dd', 'aa bb dd', 'aa'],
+      { trackDeletions: true }
+    );
+    assert.deepStrictEqual(result.deletions, [
+      { index: 2, text: 'cc ', revision: 1 },
+      { index: 2, text: ' bb dd', revision: 2 }
+    ]);
+  });
+
+  it('sorts deletions by index, then revision', () => {
+    const result = computeDeepDiff(
+      ['XX aa bb', 'XX aa', 'aa'],
+      { trackDeletions: true }
+    );
+    // rev2 deleted 'XX ' at 0; rev1 tombstone shifted to 2
+    assert.deepStrictEqual(result.deletions, [
+      { index: 0, text: 'XX ', revision: 2 },
+      { index: 2, text: ' bb', revision: 1 }
+    ]);
+  });
+
+});
+
+// ============================================================================
+// renderWithMarkers - renderDeletions (ghosts)
+// ============================================================================
+
+describe('renderWithMarkers renderDeletions', () => {
+
+  it('interleaves a ghost <del> at the tombstone position', () => {
+    const { text, markers, deletions } = computeDeepDiff(
+      ['hello world', 'hello'],
+      { trackDeletions: true }
+    );
+    const html = renderWithMarkers(text, markers, { renderDeletions: deletions });
+    assert.strictEqual(html, 'hello<del class="deep-diff-ghost"> world</del>');
+  });
+
+  it('renders the ghost before text inserted at the same point (replacement)', () => {
+    const { text, markers, deletions } = computeDeepDiff(
+      ['the cat sat', 'the dog sat'],
+      { trackDeletions: true }
+    );
+    const html = renderWithMarkers(text, markers, { renderDeletions: deletions });
+    assert.strictEqual(
+      html,
+      'the <del class="deep-diff-ghost">cat</del><ins class="deep-diff">dog</ins> sat'
+    );
+  });
+
+  it('escapes HTML in ghost text', () => {
+    const html = renderWithMarkers('hello', [], {
+      renderDeletions: [{ index: 5, text: ' <b>"&</b>', revision: 1 }]
+    });
+    assert.ok(html.includes('&lt;b&gt;&quot;&amp;&lt;/b&gt;'));
+    assert.ok(!html.includes('<b>'));
+  });
+
+  it('renders stacked ghosts at one index in revision order', () => {
+    const html = renderWithMarkers('aa', [], {
+      renderDeletions: [
+        { index: 2, text: 'second', revision: 2 },
+        { index: 2, text: 'first', revision: 1 }
+      ]
+    });
+    assert.strictEqual(
+      html,
+      'aa<del class="deep-diff-ghost">first</del><del class="deep-diff-ghost">second</del>'
+    );
+  });
+
+  it('clamps out-of-range tombstone positions to the text bounds', () => {
+    const html = renderWithMarkers('ab', [], {
+      renderDeletions: [{ index: 999, text: 'x', revision: 1 }]
+    });
+    assert.strictEqual(html, 'ab<del class="deep-diff-ghost">x</del>');
+  });
+
+  it('empty renderDeletions array leaves output byte-identical to default', () => {
+    const markers = [{ start: 0, end: 4, enabled: true }];
+    const a = renderWithMarkers('hello world', markers);
+    const b = renderWithMarkers('hello world', markers, { renderDeletions: [] });
+    assert.strictEqual(a, b);
+  });
+
+  it('adds data-revision to ghosts when dataAttributes is on', () => {
+    const html = renderWithMarkers('ab', [], {
+      renderDeletions: [{ index: 1, text: 'x', revision: 3 }],
+      dataAttributes: true
+    });
+    assert.strictEqual(html, 'a<del class="deep-diff-ghost" data-revision="3">x</del>b');
+  });
+
+  it('deepDiffHtml renderDeletions: true auto-enables tracking', () => {
+    const html = deepDiffHtml(['hello world', 'hello'], { renderDeletions: true });
+    assert.strictEqual(html, 'hello<del class="deep-diff-ghost"> world</del>');
+  });
+
+  it('deepDiffHtml respects an explicit trackDeletions: false', () => {
+    const html = deepDiffHtml(['hello world', 'hello'], {
+      renderDeletions: true,
+      trackDeletions: false
+    });
+    assert.strictEqual(html, 'hello');
+  });
+
+});
+
+// ============================================================================
+// renderWithMarkers - dataAttributes
+// ============================================================================
+
+describe('renderWithMarkers dataAttributes', () => {
+
+  it('default output is byte-identical with dataAttributes false or omitted', () => {
+    const markers = [
+      { start: 0, end: 10, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 6, end: 10, enabled: true, revision: 2, lastTouched: 2 }
+    ];
+    const a = renderWithMarkers('hello world', markers);
+    const b = renderWithMarkers('hello world', markers, { dataAttributes: false });
+    assert.strictEqual(a, b);
+    assert.strictEqual(a,
+      '<ins class="deep-diff">hello <ins class="deep-diff">world</ins></ins>');
+  });
+
+  it('emits data-revision, data-last-touched, and data-depth', () => {
+    const markers = [{ start: 0, end: 4, enabled: true, revision: 3, lastTouched: 5 }];
+    const html = renderWithMarkers('hello', markers, { dataAttributes: true });
+    assert.strictEqual(html,
+      '<ins class="deep-diff" data-revision="3" data-last-touched="5" data-depth="1">hello</ins>');
+  });
+
+  it('data-depth increases with nesting', () => {
+    const markers = [
+      { start: 0, end: 10, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 6, end: 10, enabled: true, revision: 2, lastTouched: 2 }
+    ];
+    const html = renderWithMarkers('hello world', markers, { dataAttributes: true });
+    assert.strictEqual(html,
+      '<ins class="deep-diff" data-revision="1" data-last-touched="1" data-depth="1">hello ' +
+      '<ins class="deep-diff" data-revision="2" data-last-touched="2" data-depth="2">world</ins></ins>');
+  });
+
+  it('closes and reopens tags at partial overlaps to keep attribution correct', () => {
+    const markers = [
+      { start: 0, end: 5, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 3, end: 8, enabled: true, revision: 2, lastTouched: 2 }
+    ];
+    const html = renderWithMarkers('abcdefghij', markers, { dataAttributes: true });
+    assert.strictEqual(html,
+      '<ins class="deep-diff" data-revision="1" data-last-touched="1" data-depth="1">abc' +
+      '<ins class="deep-diff" data-revision="2" data-last-touched="2" data-depth="2">def</ins></ins>' +
+      '<ins class="deep-diff" data-revision="2" data-last-touched="2" data-depth="1">ghi</ins>j');
+  });
+
+  it('defaults missing revision metadata to 0', () => {
+    const markers = [{ start: 0, end: 1, enabled: true }];
+    const html = renderWithMarkers('ab', markers, { dataAttributes: true });
+    assert.ok(html.includes('data-revision="0"'));
+    assert.ok(html.includes('data-last-touched="0"'));
+  });
+
+  it('respects custom tagName and className', () => {
+    const markers = [{ start: 0, end: 1, enabled: true, revision: 1, lastTouched: 1 }];
+    const html = renderWithMarkers('ab', markers, {
+      dataAttributes: true, tagName: 'mark', className: 'hot'
+    });
+    assert.strictEqual(html,
+      '<mark class="hot" data-revision="1" data-last-touched="1" data-depth="1">ab</mark>');
+  });
+
+  it('keeps tags balanced across messy overlaps', () => {
+    const markers = [
+      { start: 0, end: 7, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 2, end: 9, enabled: true, revision: 2, lastTouched: 2 },
+      { start: 4, end: 5, enabled: true, revision: 3, lastTouched: 3 },
+      { start: 4, end: 5, enabled: true, revision: 4, lastTouched: 4 }
+    ];
+    const html = renderWithMarkers('abcdefghij', markers, { dataAttributes: true });
+    const opens = (html.match(/<ins/g) || []).length;
+    const closes = (html.match(/<\/ins>/g) || []).length;
+    assert.strictEqual(opens, closes);
+    assert.strictEqual(html.replace(/<[^>]+>/g, ''), 'abcdefghij');
+  });
+
+  it('escapes text content', () => {
+    const markers = [{ start: 0, end: 2, enabled: true, revision: 1 }];
+    const html = renderWithMarkers('<b>', markers, { dataAttributes: true });
+    assert.ok(html.includes('&lt;b&gt;'));
+  });
+
+});
+
+// ============================================================================
+// computeHeatSegments
+// ============================================================================
+
+describe('computeHeatSegments', () => {
+
+  it('returns [] for empty text', () => {
+    assert.deepStrictEqual(computeHeatSegments('', []), []);
+  });
+
+  it('returns a single depth-0 segment when there are no markers', () => {
+    assert.deepStrictEqual(computeHeatSegments('hello', []), [
+      { start: 0, end: 5, depth: 0, revision: 0, lastTouched: 0 }
+    ]);
+  });
+
+  it('splits around a single marker', () => {
+    const markers = [{ start: 2, end: 3, enabled: true, revision: 1, lastTouched: 1 }];
+    assert.deepStrictEqual(computeHeatSegments('abcdef', markers), [
+      { start: 0, end: 2, depth: 0, revision: 0, lastTouched: 0 },
+      { start: 2, end: 4, depth: 1, revision: 1, lastTouched: 1 },
+      { start: 4, end: 6, depth: 0, revision: 0, lastTouched: 0 }
+    ]);
+  });
+
+  it('handles nested markers', () => {
+    const markers = [
+      { start: 0, end: 10, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 6, end: 10, enabled: true, revision: 2, lastTouched: 2 }
+    ];
+    assert.deepStrictEqual(computeHeatSegments('hello world', markers), [
+      { start: 0, end: 6, depth: 1, revision: 1, lastTouched: 1 },
+      { start: 6, end: 11, depth: 2, revision: 2, lastTouched: 2 }
+    ]);
+  });
+
+  it('handles partial overlaps', () => {
+    const markers = [
+      { start: 0, end: 5, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 3, end: 8, enabled: true, revision: 2, lastTouched: 2 }
+    ];
+    assert.deepStrictEqual(computeHeatSegments('abcdefghij', markers), [
+      { start: 0, end: 3, depth: 1, revision: 1, lastTouched: 1 },
+      { start: 3, end: 6, depth: 2, revision: 2, lastTouched: 2 },
+      { start: 6, end: 9, depth: 1, revision: 2, lastTouched: 2 },
+      { start: 9, end: 10, depth: 0, revision: 0, lastTouched: 0 }
+    ]);
+  });
+
+  it('merges adjacent markers with identical metadata into one segment', () => {
+    const markers = [
+      { start: 0, end: 2, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 3, end: 5, enabled: true, revision: 1, lastTouched: 1 }
+    ];
+    assert.deepStrictEqual(computeHeatSegments('abcdef', markers), [
+      { start: 0, end: 6, depth: 1, revision: 1, lastTouched: 1 }
+    ]);
+  });
+
+  it('keeps adjacent markers from different revisions as separate segments', () => {
+    const markers = [
+      { start: 0, end: 2, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 3, end: 5, enabled: true, revision: 2, lastTouched: 2 }
+    ];
+    assert.deepStrictEqual(computeHeatSegments('abcdef', markers), [
+      { start: 0, end: 3, depth: 1, revision: 1, lastTouched: 1 },
+      { start: 3, end: 6, depth: 1, revision: 2, lastTouched: 2 }
+    ]);
+  });
+
+  it('counts duplicate ranges as depth 2 with the max revision', () => {
+    const markers = [
+      { start: 1, end: 3, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 1, end: 3, enabled: true, revision: 4, lastTouched: 5 }
+    ];
+    assert.deepStrictEqual(computeHeatSegments('abcde', markers), [
+      { start: 0, end: 1, depth: 0, revision: 0, lastTouched: 0 },
+      { start: 1, end: 4, depth: 2, revision: 4, lastTouched: 5 },
+      { start: 4, end: 5, depth: 0, revision: 0, lastTouched: 0 }
+    ]);
+  });
+
+  it('ignores disabled markers', () => {
+    const markers = [
+      { start: 0, end: 4, enabled: false, revision: 1, lastTouched: 1 }
+    ];
+    assert.deepStrictEqual(computeHeatSegments('hello', markers), [
+      { start: 0, end: 5, depth: 0, revision: 0, lastTouched: 0 }
+    ]);
+  });
+
+  it('treats markers without an enabled flag as active', () => {
+    const segments = computeHeatSegments('hello', [{ start: 0, end: 4, revision: 2 }]);
+    assert.deepStrictEqual(segments, [
+      { start: 0, end: 5, depth: 1, revision: 2, lastTouched: 2 }
+    ]);
+  });
+
+  it('segments tile the text exactly', () => {
+    const { text, markers } = computeDeepDiff([
+      'The cat sat.',
+      'The big cat sat here.',
+      'The very big cat sat over here.'
+    ]);
+    const segments = computeHeatSegments(text, markers);
+    assert.strictEqual(segments[0].start, 0);
+    assert.strictEqual(segments[segments.length - 1].end, text.length);
+    for (let i = 1; i < segments.length; i++) {
+      assert.strictEqual(segments[i].start, segments[i - 1].end, 'segments must be contiguous');
+    }
+    segments.forEach(s => assert.ok(s.end > s.start, 'segments must be non-empty'));
+  });
+
+});
+
+// ============================================================================
+// normalizeMarkers
+// ============================================================================
+
+describe('normalizeMarkers', () => {
+
+  it('merges overlapping markers from the same revision', () => {
+    const merged = normalizeMarkers([
+      { start: 0, end: 5, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 3, end: 8, enabled: true, revision: 1, lastTouched: 1 }
+    ]);
+    assert.strictEqual(merged.length, 1);
+    assert.strictEqual(merged[0].start, 0);
+    assert.strictEqual(merged[0].end, 8);
+    assert.strictEqual(merged[0].revision, 1);
+  });
+
+  it('merges adjacent markers (gap 0) at the default joinGap', () => {
+    const merged = normalizeMarkers([
+      { start: 0, end: 2, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 3, end: 5, enabled: true, revision: 1, lastTouched: 1 }
+    ]);
+    assert.strictEqual(merged.length, 1);
+    assert.deepStrictEqual([merged[0].start, merged[0].end], [0, 5]);
+  });
+
+  it('does not merge markers separated by a gap larger than joinGap', () => {
+    const markers = [
+      { start: 0, end: 2, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 4, end: 6, enabled: true, revision: 1, lastTouched: 1 }
+    ];
+    assert.strictEqual(normalizeMarkers(markers).length, 2);
+    assert.strictEqual(normalizeMarkers(markers, { joinGap: 1 }).length, 1);
+  });
+
+  it('never merges markers from different revisions, even when overlapping', () => {
+    const merged = normalizeMarkers([
+      { start: 0, end: 5, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 0, end: 5, enabled: true, revision: 2, lastTouched: 2 }
+    ]);
+    assert.strictEqual(merged.length, 2);
+  });
+
+  it('takes the max lastTouched of merged markers', () => {
+    const merged = normalizeMarkers([
+      { start: 0, end: 2, enabled: true, revision: 1, lastTouched: 4 },
+      { start: 3, end: 5, enabled: true, revision: 1, lastTouched: 2 }
+    ]);
+    assert.strictEqual(merged[0].lastTouched, 4);
+  });
+
+  it('drops disabled markers', () => {
+    const merged = normalizeMarkers([
+      { start: 0, end: 2, enabled: false, revision: 1, lastTouched: 1 },
+      { start: 4, end: 6, enabled: true, revision: 1, lastTouched: 1 }
+    ]);
+    assert.strictEqual(merged.length, 1);
+    assert.strictEqual(merged[0].start, 4);
+  });
+
+  it('does not mutate the input array or its markers', () => {
+    const original = [
+      { start: 3, end: 5, enabled: true, revision: 1, lastTouched: 1 },
+      { start: 0, end: 2, enabled: true, revision: 1, lastTouched: 1 }
+    ];
+    const snapshot = JSON.stringify(original);
+    normalizeMarkers(original);
+    assert.strictEqual(JSON.stringify(original), snapshot);
+  });
+
+  it('returns markers sorted by start position', () => {
+    const merged = normalizeMarkers([
+      { start: 10, end: 12, enabled: true, revision: 2, lastTouched: 2 },
+      { start: 0, end: 2, enabled: true, revision: 1, lastTouched: 1 }
+    ]);
+    assert.deepStrictEqual(merged.map(m => m.start), [0, 10]);
+  });
+
+  it('computeDeepDiff normalize option merges same-revision fragments', () => {
+    // 'abbb' -> 'aXbbbY' fragments into two single-char markers [1,1] and [5,5]
+    const plain = computeDeepDiff(['abbb', 'aXbbbY']);
+    assert.strictEqual(plain.markers.length, 2);
+
+    const kept = computeDeepDiff(['abbb', 'aXbbbY'], { normalize: true });
+    assert.strictEqual(kept.markers.length, 2, 'gap of 3 chars should not merge at joinGap 0');
+
+    const merged = computeDeepDiff(['abbb', 'aXbbbY'], { normalize: { joinGap: 3 } });
+    assert.strictEqual(merged.markers.length, 1);
+    assert.deepStrictEqual([merged.markers[0].start, merged.markers[0].end], [1, 5]);
+  });
+
+});
+
+// ============================================================================
+// renderWithMarkers - word boundary snapping
+// ============================================================================
+
+describe('renderWithMarkers boundary: word', () => {
+
+  it('snaps marker edges outward to whole words', () => {
+    // marker covers 'or' inside 'world'
+    const markers = [{ start: 7, end: 8, enabled: true }];
+    const html = renderWithMarkers('hello world', markers, { boundary: 'word' });
+    assert.strictEqual(html, 'hello <ins class="deep-diff">world</ins>');
+  });
+
+  it('leaves edges resting on whitespace alone', () => {
+    const markers = [{ start: 5, end: 10, enabled: true }]; // ' world'
+    const charHtml = renderWithMarkers('hello world', markers);
+    const wordHtml = renderWithMarkers('hello world', markers, { boundary: 'word' });
+    assert.strictEqual(wordHtml, charHtml);
+  });
+
+  it('does not swallow punctuation', () => {
+    // marker on 'a' of 'bar' in 'foo, bar!' snaps to 'bar' but not to '!' or ' '
+    const markers = [{ start: 6, end: 6, enabled: true }];
+    const html = renderWithMarkers('foo, bar!', markers, { boundary: 'word' });
+    assert.strictEqual(html, 'foo, <ins class="deep-diff">bar</ins>!');
+  });
+
+  it('treats underscores and digits as word characters', () => {
+    const markers = [{ start: 4, end: 4, enabled: true }];
+    const html = renderWithMarkers('foo_bar1 baz', markers, { boundary: 'word' });
+    assert.strictEqual(html, '<ins class="deep-diff">foo_bar1</ins> baz');
+  });
+
+  it('does not mutate the markers array', () => {
+    const marker = { start: 7, end: 8, enabled: true, revision: 1, lastTouched: 1 };
+    renderWithMarkers('hello world', [marker], { boundary: 'word' });
+    assert.strictEqual(marker.start, 7);
+    assert.strictEqual(marker.end, 8);
+  });
+
+  it('keeps tags balanced when snapping makes markers coincide', () => {
+    const markers = [
+      { start: 0, end: 1, enabled: true },
+      { start: 3, end: 4, enabled: true }
+    ];
+    const html = renderWithMarkers('hello', markers, { boundary: 'word' });
+    assert.strictEqual(html,
+      '<ins class="deep-diff"><ins class="deep-diff">hello</ins></ins>');
+  });
+
+  it('composes with dataAttributes', () => {
+    const markers = [{ start: 7, end: 8, enabled: true, revision: 2, lastTouched: 3 }];
+    const html = renderWithMarkers('hello world', markers, {
+      boundary: 'word', dataAttributes: true
+    });
+    assert.strictEqual(html,
+      'hello <ins class="deep-diff" data-revision="2" data-last-touched="3" data-depth="1">world</ins>');
+  });
+
+  it("default boundary 'char' output is unchanged", () => {
+    const markers = [{ start: 7, end: 8, enabled: true }];
+    const html = renderWithMarkers('hello world', markers, { boundary: 'char' });
+    assert.strictEqual(html, 'hello w<ins class="deep-diff">or</ins>ld');
+  });
+
+});
+
+// ============================================================================
+// getDefaultStyles - options object, palettes, dark mode
+// ============================================================================
+
+describe('getDefaultStyles options', () => {
+
+  it('treats a number argument as { maxDepth }', () => {
+    assert.strictEqual(getDefaultStyles(3), getDefaultStyles({ maxDepth: 3 }));
+  });
+
+  it('supports all four palettes', () => {
+    for (const palette of ['green', 'amber', 'ocean', 'heat']) {
+      const css = getDefaultStyles({ palette });
+      assert.ok(css.includes('.deep-diff {'), `${palette} should generate base rule`);
+    }
+  });
+
+  it('different palettes produce different ramps', () => {
+    assert.notStrictEqual(
+      getDefaultStyles({ palette: 'green' }),
+      getDefaultStyles({ palette: 'heat' })
+    );
+  });
+
+  it('throws on an unknown palette', () => {
+    assert.throws(() => getDefaultStyles({ palette: 'magenta' }), RangeError);
+  });
+
+  it('throws on an unknown mode', () => {
+    assert.throws(() => getDefaultStyles({ mode: 'age' }), RangeError);
+    assert.doesNotThrow(() => getDefaultStyles({ mode: 'depth' }));
+  });
+
+  it('includes ghost styling for deletion tombstones', () => {
+    const css = getDefaultStyles();
+    assert.ok(css.includes('.deep-diff-ghost'));
+    assert.ok(css.includes('line-through'));
+  });
+
+  it('nudges text colour at high depths for readability', () => {
+    const css = getDefaultStyles({ maxDepth: 6 });
+    assert.ok(/color: #/.test(css), 'deep depths should set an explicit text colour');
+  });
+
+  it('clamps depths beyond the ramp to the last stop', () => {
+    const css = getDefaultStyles({ maxDepth: 10 });
+    assert.ok(css.includes(('.deep-diff ').repeat(9) + '.deep-diff {'),
+      'should emit a 10-deep selector');
+  });
+
+  it('darkMode emits a prefers-color-scheme block and data-theme overrides', () => {
+    const css = getDefaultStyles({ darkMode: true });
+    assert.ok(css.includes('@media (prefers-color-scheme: dark)'));
+    assert.ok(css.includes('[data-theme="dark"] .deep-diff {'));
+    assert.ok(css.includes('[data-theme="dark"] .deep-diff-ghost'));
+  });
+
+  it('omits dark rules by default', () => {
+    const css = getDefaultStyles();
+    assert.ok(!css.includes('@media'));
+    assert.ok(!css.includes('data-theme'));
+  });
+
+});
+
+// ============================================================================
+// transformMarkers - boundary regressions (hand-computed positions)
+// ============================================================================
+
+describe('transformMarkers boundary regressions', () => {
+
+  it('insert at exactly marker.start shifts the marker (does not expand)', () => {
+    // rev1: 'brave ' marked at [6,11]; rev2 inserts 'XX ' at index 6
+    const { markers } = computeDeepDiff([
+      'Hello world',
+      'Hello brave world',
+      'Hello XX brave world'
+    ]);
+    const braveMarker = markers.find(m => m.revision === 1);
+    assert.deepStrictEqual([braveMarker.start, braveMarker.end], [9, 14]);
+    assert.strictEqual(braveMarker.lastTouched, 1, 'a pure shift is not a touch');
+    const xxMarker = markers.find(m => m.revision === 2);
+    assert.deepStrictEqual([xxMarker.start, xxMarker.end], [6, 8]);
+  });
+
+  it('insert at exactly marker.end + 1 leaves the marker unchanged', () => {
+    // rev1: 'X' marked at [1,1]; rev2 inserts 'Y' at index 2
+    const { markers } = computeDeepDiff(['ab', 'aXb', 'aXYb']);
+    const xMarker = markers.find(m => m.revision === 1);
+    assert.deepStrictEqual([xMarker.start, xMarker.end], [1, 1]);
+    const yMarker = markers.find(m => m.revision === 2);
+    assert.deepStrictEqual([yMarker.start, yMarker.end], [2, 2]);
+  });
+
+  it('deletion ending at exactly marker.start - 1 shifts left by its full length', () => {
+    // rev1: 'XYZ' marked at [2,4]; rev2 deletes 'b' at index 1
+    const { markers } = computeDeepDiff(['ab', 'abXYZ', 'aXYZ']);
+    assert.strictEqual(markers.length, 1);
+    assert.deepStrictEqual([markers[0].start, markers[0].end], [1, 3]);
+  });
+
+  it('deletion starting at exactly marker.end contracts by one', () => {
+    // rev1: 'XYZ' marked at [1,3]; rev2 deletes 'Z' at index 3
+    const { markers } = computeDeepDiff(['ab', 'aXYZb', 'aXYb']);
+    assert.strictEqual(markers.length, 1);
+    assert.deepStrictEqual([markers[0].start, markers[0].end], [1, 2]);
+    assert.strictEqual(markers[0].lastTouched, 2);
+  });
+
+  it('deletion starting at exactly marker.end + 1 leaves the marker unchanged', () => {
+    // rev1: 'X' marked at [1,1]; rev2 deletes 'b' at index 2
+    const { markers } = computeDeepDiff(['abc', 'aXbc', 'aXc']);
+    assert.strictEqual(markers.length, 1);
+    assert.deepStrictEqual([markers[0].start, markers[0].end], [1, 1]);
+    assert.strictEqual(markers[0].lastTouched, 1);
+  });
+
+  it('replacement strictly inside a marker contracts then expands (nesting)', () => {
+    // rev1: 'QQ RR SS ' marked at [2,10]; rev2 replaces 'RR' with 'XX'
+    const { markers } = computeDeepDiff(['a b', 'a QQ RR SS b', 'a QQ XX SS b']);
+    const outer = markers.find(m => m.revision === 1);
+    assert.deepStrictEqual([outer.start, outer.end], [2, 10]);
+    assert.strictEqual(outer.lastTouched, 2);
+    const inner = markers.find(m => m.revision === 2);
+    assert.deepStrictEqual([inner.start, inner.end], [5, 6]);
+  });
+
+  it('replacement at a marker start displaces the old marker past the new text', () => {
+    // rev1: 'cat ' marked at [4,7]. rev2 replaces 'cat' with 'dog':
+    // the delete contracts the marker to [4,4] (the trailing space), then
+    // the insert at index 4 shifts it to [7,7]. The replacement text gets
+    // its own rev-2 marker at [4,6] — adjacent, not nested.
+    const { markers } = computeDeepDiff(['the sat', 'the cat sat', 'the dog sat']);
+    const old = markers.find(m => m.revision === 1);
+    assert.deepStrictEqual([old.start, old.end], [7, 7]);
+    assert.strictEqual(old.lastTouched, 2);
+    const fresh = markers.find(m => m.revision === 2);
+    assert.deepStrictEqual([fresh.start, fresh.end], [4, 6]);
+  });
+
+  it('deletion exactly covering a marker disables it', () => {
+    // rev1: 'cat' fully replaced in rev2 -> old marker gone, new marker only
+    const { markers, text } = computeDeepDiff(['the sat', 'the cat, sat', 'the sat']);
+    assert.strictEqual(text, 'the sat');
+    assert.strictEqual(markers.length, 0);
   });
 
 });
