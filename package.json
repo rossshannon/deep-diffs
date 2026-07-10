@@ -6,6 +6,9 @@
   "main": "dist/deep-diff.cjs",
   "module": "dist/deep-diff.js",
   "types": "dist/deep-diff.d.ts",
+  "bin": {
+    "deep-diffs-git": "bin/deep-diffs-git.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/deep-diff.js",

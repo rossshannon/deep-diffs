@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="depth">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep diff · why-we-rewrite.md</title>
+<style>
+:root {
+  --bg: #faf8f4; --fg: #23201a; --muted: #7a7468; --rule: #e6e1d6;
+  --card: #ffffff; --accent: #b4531f; --chrome-bg: #f2efe8;
+  --d1:#fdf2c3; --d2:#fbdf90; --d3:#f8c260; --d4:#f09c44; --d5:#e26f39; --d6:#cc4b2e;
+  --a1:#e3e7ea; --a2:#d3dfe8; --a3:#cfe3d6; --a4:#f4e3a5; --a5:#f6c47e; --a6:#ef9450;
+  --d6fg:#fff7ef; --a6fg:#2b1a10;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#16181c; --fg:#dcd8cf; --muted:#8f8a80; --rule:#2c2f35;
+    --card:#1d2025; --accent:#e08050; --chrome-bg:#1a1d21;
+    --d1:rgba(250,204,21,.14); --d2:rgba(250,190,40,.26); --d3:rgba(248,155,40,.38);
+    --d4:rgba(243,112,50,.50); --d5:rgba(235,80,50,.62); --d6:rgba(220,50,45,.74);
+    --a1:rgba(148,163,184,.16); --a2:rgba(125,155,200,.22); --a3:rgba(110,180,150,.24);
+    --a4:rgba(240,200,90,.30); --a5:rgba(245,150,70,.44); --a6:rgba(240,90,45,.60);
+    --d6fg:#f6ede6; --a6fg:#f6ede6;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.page { max-width: 1160px; margin: 0 auto; padding: 2.2rem 2rem 3rem; }
+header.report {
+  border-bottom: 1px solid var(--rule); padding-bottom: 1.2rem; margin-bottom: 1.8rem;
+}
+.eyebrow {
+  font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600; margin: 0 0 .35rem;
+}
+h1.file {
+  margin: 0 0 .4rem; font-size: 1.7rem; font-weight: 650;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: -.01em;
+}
+.meta { color: var(--muted); font-size: .88rem; margin: 0; }
+.meta b { color: var(--fg); font-weight: 600; }
+.note {
+  margin: .8rem 0 0; font-size: .84rem; color: var(--muted);
+  border-left: 3px solid var(--accent); padding: .15rem .7rem;
+}
+.controls {
+  display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center;
+  margin-top: 1.1rem;
+}
+.toggle { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; background: var(--chrome-bg); }
+.toggle button {
+  border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .8rem;
+  padding: .3rem .85rem; cursor: pointer;
+}
+:root[data-mode="depth"] .toggle button[data-set="depth"],
+:root[data-mode="age"] .toggle button[data-set="age"] {
+  background: var(--fg); color: var(--bg);
+}
+.legend { display: inline-flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--muted); }
+.legend .chip ins.dd { padding: .18rem .45rem; border-radius: 3px; font-variant-numeric: tabular-nums; }
+/* legend chips are genuinely nested (renderWithMarkers); paint only the outer
+   layer so translucent dark-mode colours don't stack into mud */
+.legend .chip ins.dd ins.dd { padding: 0; border-radius: 0; background: transparent !important; }
+:root[data-mode="age"] #legend-depth { display: none; }
+:root[data-mode="depth"] #legend-age { display: none; }
+.agebar {
+  display: inline-block; width: 130px; height: 12px; border-radius: 6px; vertical-align: -1px;
+  background: linear-gradient(to right, var(--a1), var(--a2), var(--a3), var(--a4), var(--a5), var(--a6));
+}
+main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 3rem; align-items: start; }
+article.doc {
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 1.02rem; line-height: 1.72; max-width: 68ch;
+  white-space: pre-wrap; overflow-wrap: break-word;
+}
+ins.dd { text-decoration: none; border-radius: 2px; padding: 0 .04em; transition: outline-color .15s; }
+:root[data-mode="depth"] ins.dd[data-d="1"], ins.dd.d1 { background: var(--d1); }
+:root[data-mode="depth"] ins.dd[data-d="2"], ins.dd.d2 { background: var(--d2); }
+:root[data-mode="depth"] ins.dd[data-d="3"], ins.dd.d3 { background: var(--d3); }
+:root[data-mode="depth"] ins.dd[data-d="4"], ins.dd.d4 { background: var(--d4); }
+:root[data-mode="depth"] ins.dd[data-d="5"], ins.dd.d5 { background: var(--d5); }
+:root[data-mode="depth"] ins.dd[data-d="6"], ins.dd.d6 { background: var(--d6); color: var(--d6fg); }
+:root[data-mode="age"] ins.dd[data-a="1"] { background: var(--a1); }
+:root[data-mode="age"] ins.dd[data-a="2"] { background: var(--a2); }
+:root[data-mode="age"] ins.dd[data-a="3"] { background: var(--a3); }
+:root[data-mode="age"] ins.dd[data-a="4"] { background: var(--a4); }
+:root[data-mode="age"] ins.dd[data-a="5"] { background: var(--a5); }
+:root[data-mode="age"] ins.dd[data-a="6"] { background: var(--a6); color: var(--a6fg); }
+/* legend chips keep depth colours in both modes */
+ins.dd.d1 { background: var(--d1); } ins.dd.d2 { background: var(--d2); }
+ins.dd.d3 { background: var(--d3); } ins.dd.d4 { background: var(--d4); }
+ins.dd.d5 { background: var(--d5); } ins.dd.d6 { background: var(--d6); color: var(--d6fg); }
+article.doc ins.dd:hover { outline: 2px solid var(--accent); outline-offset: 1px; cursor: help; }
+article.doc.focus ins.dd:not(.hit) { opacity: .35; }
+article.doc ins.dd.hit { outline: 2px solid var(--accent); outline-offset: 1px; }
+aside.ledger { position: sticky; top: 1.2rem; max-height: calc(100vh - 2.4rem); overflow: auto; }
+aside.ledger h2 {
+  font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; margin: 0 0 .7rem;
+}
+aside.ledger .hint { font-size: .74rem; color: var(--muted); margin: -.3rem 0 .7rem; }
+ol.commits { list-style: none; margin: 0; padding: 0; }
+li.commit {
+  display: flex; gap: .6rem; align-items: flex-start;
+  padding: .5rem .6rem; border-radius: 8px; cursor: default;
+}
+li.commit:hover, li.commit:focus-visible { background: var(--chrome-bg); outline: none; }
+.dot { flex: none; width: 11px; height: 11px; border-radius: 50%; margin-top: .32rem; border: 1px solid rgba(0,0,0,.12); }
+@media (prefers-color-scheme: dark) { .dot { border-color: rgba(255,255,255,.15); } }
+.dot.m0 { background: transparent; border: 2px solid var(--muted); }
+.dot.m1 { background: var(--d1); } .dot.m2 { background: var(--d2); }
+.dot.m3 { background: var(--d3); } .dot.m4 { background: var(--d5); }
+.dot.m5 { background: var(--d6); }
+.c-body { min-width: 0; display: block; }
+.c-top { display: flex; gap: .5rem; align-items: baseline; min-width: 0; }
+code.sha { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .78rem; color: var(--accent); flex: none; }
+.subject { font-size: .84rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-meta { display: block; font-size: .74rem; color: var(--muted); margin-top: .1rem; }
+footer.report {
+  border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1rem;
+  font-size: .8rem; color: var(--muted);
+}
+footer.report a { color: var(--accent); }
+#tip {
+  position: fixed; z-index: 10; max-width: 340px; padding: .45rem .65rem;
+  background: var(--fg); color: var(--bg); border-radius: 6px;
+  font: .76rem/1.45 system-ui, sans-serif; white-space: pre-line;
+  pointer-events: none; opacity: 0; transition: opacity .12s; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+}
+#tip.show { opacity: 1; }
+@media (max-width: 980px) {
+  main { grid-template-columns: 1fr; }
+  aside.ledger { position: static; max-height: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="report">
+  <p class="eyebrow">Deep diff report</p>
+  <h1 class="file">why-we-rewrite.md</h1>
+  <p class="meta"><b>essay-repo</b> · 15 commits · 4 Sept 2025 – 26 Sept 2025</p>
+  <p class="note">Example report: a short essay reworked over 15 commits by three authors in a demo repository (history synthesised to showcase the technique).</p>
+  <div class="controls">
+    <span class="toggle" role="group" aria-label="Heat mode">
+      <button type="button" data-set="depth">Edit depth</button>
+      <button type="button" data-set="age">Recency</button>
+    </span>
+    <span class="legend" id="legend-depth">times edited <span class="chip"><ins class="dd d1">×1</ins></span><span class="chip"><ins class="dd d2"><ins class="dd d2">×2</ins></ins></span><span class="chip"><ins class="dd d3"><ins class="dd d3"><ins class="dd d3">×3</ins></ins></ins></span><span class="chip"><ins class="dd d4"><ins class="dd d4"><ins class="dd d4"><ins class="dd d4">×4</ins></ins></ins></ins></span><span class="chip"><ins class="dd d5"><ins class="dd d5"><ins class="dd d5"><ins class="dd d5"><ins class="dd d5">×5</ins></ins></ins></ins></ins></span><span class="chip"><ins class="dd d6"><ins class="dd d6"><ins class="dd d6"><ins class="dd d6"><ins class="dd d6"><ins class="dd d6">×6+</ins></ins></ins></ins></ins></ins></span></span>
+    <span class="legend" id="legend-age">older <span class="agebar"></span> newer</span>
+  </div>
+</header>
+<main>
+  <article class="doc" id="doc"># On Rewriting
+
+Nobody writes well on the first try. <ins class="dd" data-d="1" data-a="1" data-rev="2" data-revs="2" data-touched="2" data-tip="introduced in 2f8ffcb · Rework the opening — &quot;guess&quot; needs setup
+edited ×1">A</ins> first draft is <ins class="dd" data-d="1" data-a="4" data-rev="2" data-revs="2" data-touched="9" data-tip="introduced in 2f8ffcb · Rework the opening — &quot;guess&quot; needs setup
+last reworked in 03c121a · Third pass on the opening paragraph
+edited ×1">not a failed final
+draft; it is a </ins><ins class="dd" data-d="2" data-a="4" data-rev="5" data-revs="2,5" data-touched="9" data-tip="introduced in 99e2cc0 · Opening again: a draft is a probe, not a guess
+last reworked in 03c121a · Third pass on the opening paragraph
+edited ×2">probe, thrown</ins> <ins class="dd" data-d="2" data-a="4" data-rev="9" data-revs="2,9" data-touched="9" data-tip="introduced in 03c121a · Third pass on the opening paragraph
+edited ×2">out </ins><ins class="dd" data-d="1" data-a="4" data-rev="2" data-revs="2" data-touched="9" data-tip="introduced in 2f8ffcb · Rework the opening — &quot;guess&quot; needs setup
+last reworked in 03c121a · Third pass on the opening paragraph
+edited ×1">quickly so that there is something </ins><ins class="dd" data-d="2" data-a="4" data-rev="9" data-revs="2,9" data-touched="9" data-tip="introduced in 03c121a · Third pass on the opening paragraph
+edited ×2">real </ins><ins class="dd" data-d="1" data-a="4" data-rev="2" data-revs="2" data-touched="9" data-tip="introduced in 2f8ffcb · Rework the opening — &quot;guess&quot; needs setup
+last reworked in 03c121a · Third pass on the opening paragraph
+edited ×1">to</ins>
+<ins class="dd" data-d="2" data-a="4" data-rev="5" data-revs="2,5" data-touched="9" data-tip="introduced in 99e2cc0 · Opening again: a draft is a probe, not a guess
+last reworked in 03c121a · Third pass on the opening paragraph
+edited ×2">push</ins> <ins class="dd" data-d="2" data-a="4" data-rev="5" data-revs="2,5" data-touched="9" data-tip="introduced in 99e2cc0 · Opening again: a draft is a probe, not a guess
+last reworked in 03c121a · Third pass on the opening paragraph
+edited ×2">agains</ins><ins class="dd" data-d="1" data-a="4" data-rev="2" data-revs="2" data-touched="9" data-tip="introduced in 2f8ffcb · Rework the opening — &quot;guess&quot; needs setup
+last reworked in 03c121a · Third pass on the opening paragraph
+edited ×1">t</ins>.<ins class="dd" data-d="1" data-a="6" data-rev="9" data-revs="9" data-touched="13" data-tip="introduced in 03c121a · Third pass on the opening paragraph
+last reworked in 9f3df8f · Opening, fourth pass: name the thesis
+edited ×1"> The quality of a piece is </ins><ins class="dd" data-d="2" data-a="6" data-rev="13" data-revs="9,13" data-touched="13" data-tip="introduced in 9f3df8f · Opening, fourth pass: name the thesis
+edited ×2">decided</ins><ins class="dd" data-d="1" data-a="6" data-rev="9" data-revs="9" data-touched="13" data-tip="introduced in 03c121a · Third pass on the opening paragraph
+last reworked in 9f3df8f · Opening, fourth pass: name the thesis
+edited ×1"> by what happens next</ins><ins class="dd" data-d="2" data-a="6" data-rev="13" data-revs="9,13" data-touched="13" data-tip="introduced in 9f3df8f · Opening, fourth pass: name the thesis
+edited ×2"> — by
+the rewriting</ins><ins class="dd" data-d="1" data-a="6" data-rev="9" data-revs="9" data-touched="13" data-tip="introduced in 03c121a · Third pass on the opening paragraph
+last reworked in 9f3df8f · Opening, fourth pass: name the thesis
+edited ×1">.</ins>
+
+Most writing advice is about producing words. <ins class="dd" data-d="1" data-a="2" data-rev="4" data-revs="4" data-touched="4" data-tip="introduced in feb9d5d · Tighten the writing-advice paragraph
+edited ×1">Almost non</ins>e of it is about
+what happens afterwards, which is where the <ins class="dd" data-d="1" data-a="2" data-rev="4" data-revs="4" data-touched="4" data-tip="introduced in feb9d5d · Tighten the writing-advice paragraph
+edited ×1">actu</ins>al work is. You write a
+paragraph, read it back, and fix it. Then you fix it again.<ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1"> The distance</ins>
+<ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">between</ins> <ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">a first draft and a published piece is measured in these small,</ins>
+<ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">repeated acts</ins> <ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">of repair.</ins>
+
+<ins class="dd" data-d="2" data-a="6" data-rev="3" data-revs="1,3" data-touched="14" data-tip="introduced in a0d5c22 · Add paragraph on contested sentences
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2">Every document has its contested sentences: the ones rewritten </ins><ins class="dd" data-d="3" data-a="6" data-rev="8" data-revs="1,3,8" data-touched="14" data-tip="introduced in 305a37b · Contested sentences: make the point land
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×3">o</ins><ins class="dd" data-d="2" data-a="6" data-rev="3" data-revs="1,3" data-touched="14" data-tip="introduced in a0d5c22 · Add paragraph on contested sentences
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2">n</ins> <ins class="dd" data-d="2" data-a="6" data-rev="3" data-revs="1,3" data-touched="14" data-tip="introduced in a0d5c22 · Add paragraph on contested sentences
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2">every</ins>
+<ins class="dd" data-d="2" data-a="6" data-rev="3" data-revs="1,3" data-touched="14" data-tip="introduced in a0d5c22 · Add paragraph on contested sentences
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2">pass</ins><ins class="dd" data-d="3" data-a="6" data-rev="12" data-revs="1,3,12" data-touched="14" data-tip="introduced in 7adb3d6 · Contested sentences pass 3 — trim flab
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×3">,</ins><ins class="dd" data-d="2" data-a="6" data-rev="3" data-revs="1,3" data-touched="14" data-tip="introduced in a0d5c22 · Add paragraph on contested sentences
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2"> never quite settl</ins><ins class="dd" data-d="3" data-a="6" data-rev="12" data-revs="1,3,12" data-touched="14" data-tip="introduced in 7adb3d6 · Contested sentences pass 3 — trim flab
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×3">ing</ins><ins class="dd" data-d="2" data-a="6" data-rev="3" data-revs="1,3" data-touched="14" data-tip="introduced in a0d5c22 · Add paragraph on contested sentences
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2">. They are </ins><ins class="dd" data-d="3" data-a="6" data-rev="8" data-revs="1,3,8" data-touched="14" data-tip="introduced in 305a37b · Contested sentences: make the point land
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×3">worth </ins><ins class="dd" data-d="3" data-a="6" data-rev="12" data-revs="1,3,12" data-touched="14" data-tip="introduced in 7adb3d6 · Contested sentences pass 3 — trim flab
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×3">watching </ins><ins class="dd" data-d="4" data-a="6" data-rev="14" data-revs="1,3,12,14" data-touched="14" data-tip="introduced in ba8b7ab · Final polish: bones, and the last line
+edited ×4">very </ins><ins class="dd" data-d="3" data-a="6" data-rev="12" data-revs="1,3,12" data-touched="14" data-tip="introduced in 7adb3d6 · Contested sentences pass 3 — trim flab
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×3">closely, because they
+mark the </ins><ins class="dd" data-d="4" data-a="6" data-rev="14" data-revs="1,3,12,14" data-touched="14" data-tip="introduced in ba8b7ab · Final polish: bones, and the last line
+edited ×4">exact </ins><ins class="dd" data-d="3" data-a="6" data-rev="12" data-revs="1,3,12" data-touched="14" data-tip="introduced in 7adb3d6 · Contested sentences pass 3 — trim flab
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×3">places</ins><ins class="dd" data-d="2" data-a="6" data-rev="3" data-revs="1,3" data-touched="14" data-tip="introduced in a0d5c22 · Add paragraph on contested sentences
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2"> where the thinking is</ins> <ins class="dd" data-d="2" data-a="6" data-rev="3" data-revs="1,3" data-touched="14" data-tip="introduced in a0d5c22 · Add paragraph on contested sentences
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2">still happening.</ins>
+
+<ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">Editors know this</ins><ins class="dd" data-d="2" data-a="6" data-rev="14" data-revs="1,14" data-touched="14" data-tip="introduced in ba8b7ab · Final polish: bones, and the last line
+edited ×2"> in their bones</ins><ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">. Programmers know it too, though they call</ins>
+<ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">it refactoring.
+In both crafts, the object on the screen is the residue of hundreds of
+decisions, most of them reversals</ins>.<ins class="dd" data-d="1" data-a="3" data-rev="6" data-revs="6" data-touched="6" data-tip="introduced in ae408ca · Refactoring para: version control as memory
+edited ×1"> A codebase, like an essay, remembers
+nothing by default; version control had to be invented to give it a memory.</ins>
+
+The tools we use to write mostly hide this history. A document shows you
+<ins class="dd" data-d="1" data-a="4" data-rev="10" data-revs="10" data-touched="10" data-tip="introduced in dd5b382 · Present tense only: say what is missing
+edited ×1">its </ins>present tense only<ins class="dd" data-d="1" data-a="4" data-rev="10" data-revs="10" data-touched="10" data-tip="introduced in dd5b382 · Present tense only: say what is missing
+edited ×1">: the current text, flat and confident, with no trace
+of the arguments that produced it</ins>.
+
+<ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">If we could see where a text had been worked and reworked</ins><ins class="dd" data-d="2" data-a="6" data-rev="11" data-revs="1,11" data-touched="14" data-tip="introduced in 15fd5a8 · Sharpen the closing question
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2"> — which sentences
+came easily and which were fought over —</ins><ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1"> we would read it</ins> <ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">differently</ins><ins class="dd" data-d="2" data-a="6" data-rev="11" data-revs="1,11" data-touched="14" data-tip="introduced in 15fd5a8 · Sharpen the closing question
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2">, and</ins><ins class="dd" data-d="3" data-a="6" data-rev="14" data-revs="1,11,14" data-touched="14" data-tip="introduced in ba8b7ab · Final polish: bones, and the last line
+edited ×3"> we</ins>
+<ins class="dd" data-d="2" data-a="6" data-rev="11" data-revs="1,11" data-touched="14" data-tip="introduced in 15fd5a8 · Sharpen the closing question
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×2">would edit it better</ins><ins class="dd" data-d="1" data-a="6" data-rev="1" data-revs="1" data-touched="14" data-tip="introduced in baa955c · Expand the middle; add closing thought
+last reworked in ba8b7ab · Final polish: bones, and the last line
+edited ×1">.</ins><ins class="dd" data-d="1" data-a="6" data-rev="14" data-revs="14" data-touched="14" data-tip="introduced in ba8b7ab · Final polish: bones, and the last line
+edited ×1"> This essay is an argument for tools that remember.</ins></article>
+  <aside class="ledger">
+    <h2>Commit ledger · oldest first</h2>
+    <p class="hint">Hover a commit to spotlight what it changed.</p>
+    <ol class="commits" id="commits">
+<li class="commit" data-rev="0" tabindex="0">
+  <span class="dot m0" title="Oldest shown revision — everything starts unhighlighted here"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">07c4864</code> <span class="subject" title="First rough draft of rewriting essay">First rough draft of rewriting essay</span></span>
+    <span class="c-meta" title="Oldest shown revision — everything starts unhighlighted here">Maeve Byrne · 4 Sept 2025 · baseline · 468 chars</span>
+  </span>
+</li>
+<li class="commit" data-rev="1" tabindex="0">
+  <span class="dot m5" title="383 chars inserted, 77 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">baa955c</code> <span class="subject" title="Expand the middle; add closing thought">Expand the middle; add closing thought</span></span>
+    <span class="c-meta" title="383 chars inserted, 77 deleted vs the previous shown revision">Maeve Byrne · 5 Sept 2025 · +383 −77</span>
+  </span>
+</li>
+<li class="commit" data-rev="2" tabindex="0">
+  <span class="dot m3" title="93 chars inserted, 10 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">2f8ffcb</code> <span class="subject" title="Rework the opening — &quot;guess&quot; needs setup">Rework the opening — &quot;guess&quot; needs setup</span></span>
+    <span class="c-meta" title="93 chars inserted, 10 deleted vs the previous shown revision">Maeve Byrne · 7 Sept 2025 · +93 −10</span>
+  </span>
+</li>
+<li class="commit" data-rev="3" tabindex="0">
+  <span class="dot m4" title="169 chars inserted, 0 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">a0d5c22</code> <span class="subject" title="Add paragraph on contested sentences">Add paragraph on contested sentences</span></span>
+    <span class="c-meta" title="169 chars inserted, 0 deleted vs the previous shown revision">Dan Okafor · 9 Sept 2025 · +169 −0</span>
+  </span>
+</li>
+<li class="commit" data-rev="4" tabindex="0">
+  <span class="dot m2" title="21 chars inserted, 27 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">feb9d5d</code> <span class="subject" title="Tighten the writing-advice paragraph">Tighten the writing-advice paragraph</span></span>
+    <span class="c-meta" title="21 chars inserted, 27 deleted vs the previous shown revision">Dan Okafor · 12 Sept 2025 · +21 −27</span>
+  </span>
+</li>
+<li class="commit" data-rev="5" tabindex="0">
+  <span class="dot m2" title="24 chars inserted, 17 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">99e2cc0</code> <span class="subject" title="Opening again: a draft is a probe, not a guess">Opening again: a draft is a probe, not a guess</span></span>
+    <span class="c-meta" title="24 chars inserted, 17 deleted vs the previous shown revision">Maeve Byrne · 13 Sept 2025 · +24 −17</span>
+  </span>
+</li>
+<li class="commit" data-rev="6" tabindex="0">
+  <span class="dot m3" title="113 chars inserted, 0 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">ae408ca</code> <span class="subject" title="Refactoring para: version control as memory">Refactoring para: version control as memory</span></span>
+    <span class="c-meta" title="113 chars inserted, 0 deleted vs the previous shown revision">Priya Nair · 14 Sept 2025 · +113 −0</span>
+  </span>
+</li>
+<li class="commit" data-rev="7" tabindex="0">
+  <span class="dot m0" title="No change to the file text (e.g. a rename)"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">b44714c</code> <span class="subject" title="Rename essay to why-we-rewrite.md">Rename essay to why-we-rewrite.md</span></span>
+    <span class="c-meta" title="No change to the file text (e.g. a rename)">Maeve Byrne · 15 Sept 2025 · no text change</span>
+  </span>
+</li>
+<li class="commit" data-rev="8" tabindex="0">
+  <span class="dot m2" title="50 chars inserted, 8 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">305a37b</code> <span class="subject" title="Contested sentences: make the point land">Contested sentences: make the point land</span></span>
+    <span class="c-meta" title="50 chars inserted, 8 deleted vs the previous shown revision">Dan Okafor · 16 Sept 2025 · +50 −8</span>
+  </span>
+</li>
+<li class="commit" data-rev="9" tabindex="0">
+  <span class="dot m2" title="63 chars inserted, 3 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">03c121a</code> <span class="subject" title="Third pass on the opening paragraph">Third pass on the opening paragraph</span></span>
+    <span class="c-meta" title="63 chars inserted, 3 deleted vs the previous shown revision">Maeve Byrne · 17 Sept 2025 · +63 −3</span>
+  </span>
+</li>
+<li class="commit" data-rev="10" tabindex="0">
+  <span class="dot m3" title="89 chars inserted, 2 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">dd5b382</code> <span class="subject" title="Present tense only: say what is missing">Present tense only: say what is missing</span></span>
+    <span class="c-meta" title="89 chars inserted, 2 deleted vs the previous shown revision">Priya Nair · 19 Sept 2025 · +89 −2</span>
+  </span>
+</li>
+<li class="commit" data-rev="11" tabindex="0">
+  <span class="dot m3" title="89 chars inserted, 2 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">15fd5a8</code> <span class="subject" title="Sharpen the closing question">Sharpen the closing question</span></span>
+    <span class="c-meta" title="89 chars inserted, 2 deleted vs the previous shown revision">Maeve Byrne · 20 Sept 2025 · +89 −2</span>
+  </span>
+</li>
+<li class="commit" data-rev="12" tabindex="0">
+  <span class="dot m3" title="52 chars inserted, 61 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">7adb3d6</code> <span class="subject" title="Contested sentences pass 3 — trim flab">Contested sentences pass 3 — trim flab</span></span>
+    <span class="c-meta" title="52 chars inserted, 61 deleted vs the previous shown revision">Priya Nair · 22 Sept 2025 · +52 −61</span>
+  </span>
+</li>
+<li class="commit" data-rev="13" tabindex="0">
+  <span class="dot m2" title="26 chars inserted, 3 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">9f3df8f</code> <span class="subject" title="Opening, fourth pass: name the thesis">Opening, fourth pass: name the thesis</span></span>
+    <span class="c-meta" title="26 chars inserted, 3 deleted vs the previous shown revision">Maeve Byrne · 23 Sept 2025 · +26 −3</span>
+  </span>
+</li>
+<li class="commit" data-rev="14" tabindex="0">
+  <span class="dot m3" title="80 chars inserted, 3 deleted vs the previous shown revision"></span>
+  <span class="c-body">
+    <span class="c-top"><code class="sha">ba8b7ab</code> <span class="subject" title="Final polish: bones, and the last line">Final polish: bones, and the last line</span></span>
+    <span class="c-meta" title="80 chars inserted, 3 deleted vs the previous shown revision">Maeve Byrne · 26 Sept 2025 · +80 −3</span>
+  </span>
+</li>
+    </ol>
+  </aside>
+</main>
+<footer class="report">
+  Generated by <code>deep-diffs-git</code>. Repeatedly edited regions glow hotter — a heatmap of
+  cumulative editorial activity. Technique from Ross Shannon,
+  <a href="https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf">&ldquo;Deep Diffs: Visually
+  Exploring the History of a Document&rdquo;</a> (AVI&nbsp;2010).
+</footer>
+</div>
+<div id="tip" role="tooltip"></div>
+<script>
+(function () {
+  var root = document.documentElement;
+  document.querySelectorAll('.toggle button').forEach(function (btn) {
+    btn.addEventListener('click', function () { root.dataset.mode = btn.dataset.set; });
+  });
+
+  var tip = document.getElementById('tip');
+  var doc = document.getElementById('doc');
+  doc.addEventListener('mouseover', function (e) {
+    var el = e.target.closest('ins.dd');
+    if (!el || !el.dataset.tip) return;
+    tip.textContent = el.dataset.tip;
+    tip.classList.add('show');
+  });
+  doc.addEventListener('mousemove', function (e) {
+    if (!tip.classList.contains('show')) return;
+    var x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 12);
+    var y = e.clientY + 18;
+    if (y + tip.offsetHeight > window.innerHeight - 8) y = e.clientY - tip.offsetHeight - 10;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  });
+  doc.addEventListener('mouseout', function (e) {
+    if (!e.target.closest || !e.target.closest('ins.dd')) return;
+    tip.classList.remove('show');
+  });
+
+  // Hovering a ledger row spotlights the text that commit introduced or reworked.
+  var segs = Array.prototype.slice.call(doc.querySelectorAll('ins.dd'));
+  function focusRev(rev) {
+    var any = false;
+    segs.forEach(function (s) {
+      var hit = (',' + s.dataset.revs + ',').indexOf(',' + rev + ',') !== -1 ||
+                s.dataset.touched === String(rev);
+      s.classList.toggle('hit', hit);
+      any = any || hit;
+    });
+    doc.classList.toggle('focus', any);
+  }
+  function clearFocus() {
+    segs.forEach(function (s) { s.classList.remove('hit'); });
+    doc.classList.remove('focus');
+  }
+  document.querySelectorAll('li.commit').forEach(function (row) {
+    row.addEventListener('mouseenter', function () { focusRev(row.dataset.rev); });
+    row.addEventListener('mouseleave', clearFocus);
+    row.addEventListener('focus', function () { focusRev(row.dataset.rev); });
+    row.addEventListener('blur', clearFocus);
+  });
+})();
+</script>
+</body>
+</html>
