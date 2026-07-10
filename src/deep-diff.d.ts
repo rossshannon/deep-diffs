@@ -113,6 +113,19 @@ export interface ComputeOptions {
    * (default: false).
    */
   normalize?: boolean | NormalizeOptions;
+  /**
+   * Treat an adjacent DELETE+INSERT pair in a revision's diff as a
+   * replacement: markers overlapping the deleted range are remapped
+   * proportionally (rounded outward) onto the inserted text — keeping their
+   * birth `revision`, updating `lastTouched` — instead of being killed or
+   * contracted. The insertion still gets its own fresh marker, so the
+   * remapped marker and the new one stack: "delete a phrase and retype it"
+   * deepens heat instead of resetting it. Pure deletions still kill or
+   * contract as usual. Recommended for fine-grained (keystroke-level)
+   * snapshot histories; leave off for coarse committed revisions
+   * (default: false — default output is unchanged).
+   */
+  trackReplacements?: boolean;
 }
 
 /**

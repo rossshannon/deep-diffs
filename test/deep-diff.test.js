@@ -1486,3 +1486,273 @@ describe('transformMarkers boundary regressions', () => {
   });
 
 });
+
+// ============================================================================
+// trackReplacements - replacement-aware marker transform
+// ----------------------------------------------------------------------------
+// Adjacent DELETE+INSERT pairs are treated as replacements: markers
+// overlapping the deleted range are remapped (proportionally, rounded
+// outward) onto the inserted text instead of being killed/contracted, and
+// the fresh insertion marker stacks on top. All positions below are
+// hand-computed from the documented semantics against verified dmp diffs.
+// ============================================================================
+
+describe('trackReplacements', () => {
+
+  const opts = { timeout: 0, trackReplacements: true };
+
+  // Max marker depth over the inclusive range [start, end] of result.text.
+  const maxDepthOver = (result, start, end) => {
+    let max = 0;
+    const segments = computeHeatSegments(result.text, result.markers);
+    for (const s of segments) {
+      if (s.start <= end && s.end - 1 >= start) max = Math.max(max, s.depth);
+    }
+    return max;
+  };
+
+  const pin = (marker, [start, end, revision, lastTouched, slice], text) => {
+    assert.deepStrictEqual(
+      { start: marker.start, end: marker.end, revision: marker.revision, lastTouched: marker.lastTouched },
+      { start, end, revision, lastTouched },
+      `expected marker [${start},${end}] rev=${revision} lt=${lastTouched}, got ${JSON.stringify(marker)}`);
+    assert.strictEqual(text.slice(marker.start, marker.end + 1), slice);
+  };
+
+  const byPosThenRev = markers =>
+    markers.slice().sort((a, b) => a.start - b.start || a.end - b.end || a.revision - b.revision);
+
+  it('living-draft gesture: rework of the same word stacks depth instead of resetting', () => {
+    const revs = ['The quick brown fox', 'The quick red fox', 'The quick crimson fox'];
+
+    // Default: rev1's "red" marker is exactly covered by the DELETE and
+    // killed; "crimson" gets a fresh depth-1 marker. Heat resets.
+    const plain = computeDeepDiff(revs, { timeout: 0 });
+    const colorStart = plain.text.indexOf('crimson');
+    assert.strictEqual(maxDepthOver(plain, colorStart, colorStart + 6), 1);
+
+    // trackReplacements: the "red" marker (born rev 1) rides onto "crimson"
+    // and the fresh rev-2 marker stacks on top of it.
+    const tracked = computeDeepDiff(revs, opts);
+    assert.strictEqual(tracked.text, 'The quick crimson fox');
+    assert.ok(maxDepthOver(tracked, colorStart, colorStart + 6) >= 2,
+      'reworked colour word should be depth >= 2 by revision 3');
+
+    const ms = byPosThenRev(tracked.markers);
+    assert.strictEqual(ms.length, 2);
+    pin(ms[0], [10, 16, 1, 2, 'crimson'], tracked.text); // remapped, identity kept
+    pin(ms[1], [10, 16, 2, 2, 'crimson'], tracked.text); // fresh insertion marker
+  });
+
+  it('default output is byte-identical whether the option is omitted or false', () => {
+    const sets = [
+      ['The quick brown fox', 'The quick red fox', 'The quick crimson fox'],
+      ['ab', 'aXYZb', 'aPQb'],
+      ['hello', 'hello world', 'hello'],
+      ['mmmm rstu oooo', 'mmmm QQQQrstu oooo', 'mmmm WWrstu oooo']
+    ];
+    for (const revs of sets) {
+      assert.deepStrictEqual(
+        computeDeepDiff(revs, { timeout: 0, trackReplacements: false }),
+        computeDeepDiff(revs, { timeout: 0 }),
+        `explicit false must equal omitted for ${JSON.stringify(revs)}`);
+    }
+  });
+
+  it('diffs without replacement pairs behave identically with the option on', () => {
+    // Pure insertions and pure deletions only - no adjacent DELETE+INSERT.
+    const sets = [
+      ['hello', 'hello world', 'hello big world'],   // inserts only
+      ['hello big world', 'hello world', 'hello'],   // deletes only
+      ['a b c', 'a X b Y c', 'a X b c']
+    ];
+    for (const revs of sets) {
+      assert.deepStrictEqual(
+        computeDeepDiff(revs, opts),
+        computeDeepDiff(revs, { timeout: 0 }),
+        `no-replacement chain must be unaffected for ${JSON.stringify(revs)}`);
+    }
+  });
+
+  it('pure delete (no adjacent insert) still kills a fully covered marker', () => {
+    // rev1 marker 'XYZ' [1,3]; rev2 diff [EQ 'a'][DEL 'XYZ'][EQ 'b'] - the
+    // DELETE has no adjacent INSERT, so the marker dies as in default mode.
+    const r = computeDeepDiff(['ab', 'aXYZb', 'ab'], opts);
+    assert.strictEqual(r.text, 'ab');
+    assert.strictEqual(r.markers.length, 0);
+  });
+
+  it('a DELETE and an INSERT separated by an EQUAL are not a replacement', () => {
+    // rev2 diff: [EQ 'a'][DEL 'X'][EQ 'b c'][INS 'Y'][EQ 'd'] - unrelated
+    // edits. The 'X' marker is killed; only the fresh 'Y' marker remains.
+    const r = computeDeepDiff(['ab cd', 'aXb cd', 'ab cYd'], opts);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 1);
+    pin(ms[0], [4, 4, 2, 2, 'Y'], r.text);
+  });
+
+  it('marker exactly equal to the deleted range remaps to exactly the inserted range (shorter insert)', () => {
+    // rev1 marker 'XYZ' [1,3]; rev2 diff [EQ 'a'][DEL 'XYZ'][INS 'PQ'][EQ 'b'].
+    // 100% coverage of the deleted span -> whole inserted span [1,2].
+    const r = computeDeepDiff(['ab', 'aXYZb', 'aPQb'], opts);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 2);
+    pin(ms[0], [1, 2, 1, 2, 'PQ'], r.text); // remapped: birth rev 1, touched rev 2
+    pin(ms[1], [1, 2, 2, 2, 'PQ'], r.text); // fresh insertion marker stacks
+    assert.strictEqual(maxDepthOver(r, 1, 2), 2);
+  });
+
+  it('marker exactly equal to the deleted range remaps whole when the insert is longer', () => {
+    // rev1 marker 'X' [1,1]; rev2 [EQ 'a'][DEL 'X'][INS 'PQRS'][EQ 'b'].
+    // dl=1, il=4: mapped span = [floor(0*4/1), ceil(1*4/1)-1] = [0,3].
+    const r = computeDeepDiff(['ab', 'aXb', 'aPQRSb'], opts);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 2);
+    pin(ms[0], [1, 4, 1, 2, 'PQRS'], r.text);
+    pin(ms[1], [1, 4, 2, 2, 'PQRS'], r.text);
+  });
+
+  it('marker head outside the replacement stays put; tail remaps proportionally', () => {
+    // rev1 marker 'XY' [1,2]; rev2 'aXYcd' -> 'aXQQd' diffs as
+    // [EQ 'aX'][DEL 'Yc'][INS 'QQ'][EQ 'd']: deleted [2,3], dl=2, il=2.
+    // Overlap is the first deleted char (rel 0..0) -> mapped [0,0], so the
+    // marker keeps its head 'X' at 1 and ends at 2 + 0 = 2: 'XQ'.
+    const r = computeDeepDiff(['acd', 'aXYcd', 'aXQQd'], opts);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 2);
+    pin(ms[0], [1, 2, 1, 2, 'XQ'], r.text);
+    pin(ms[1], [2, 3, 2, 2, 'QQ'], r.text);
+  });
+
+  it('marker tail outside the replacement shifts by the net delta; head remaps proportionally', () => {
+    // rev1 marker 'YZ' [2,3]; rev2 'aXYZd' -> 'aPQZd' diffs as
+    // [EQ 'a'][DEL 'XY'][INS 'PQ'][EQ 'Zd']: deleted [1,2], dl=2, il=2.
+    // Marker covered the second deleted char (rel 1..1) -> mapped [1,1], so
+    // start = 1 + 1 = 2; tail 'Z' past the delete shifts by delta 0: 'QZ'.
+    const r = computeDeepDiff(['aXd', 'aXYZd', 'aPQZd'], opts);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 2);
+    pin(ms[0], [1, 2, 2, 2, 'PQ'], r.text); // fresh insertion marker
+    pin(ms[1], [2, 3, 1, 2, 'QZ'], r.text); // remapped tail-outside marker
+  });
+
+  it('multiple markers over one replacement remap independently and proportionally', () => {
+    // rev1 marker 'X' [1,1], rev2 marker 'Y' [2,2]; rev3 replaces 'XY' with
+    // 'PQRS' (dl=2, il=4). X covered the first half of the delete -> first
+    // half of the insert [1,2]; Y the second half -> [3,4]. Fresh rev-3
+    // marker covers all of 'PQRS'.
+    const r = computeDeepDiff(['ab', 'aXb', 'aXYb', 'aPQRSb'], opts);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 3);
+    pin(ms[0], [1, 2, 1, 3, 'PQ'], r.text);
+    pin(ms[1], [1, 4, 3, 3, 'PQRS'], r.text);
+    pin(ms[2], [3, 4, 2, 3, 'RS'], r.text);
+  });
+
+  it('insert shorter than delete: outward rounding keeps every marker at least one char, stacking', () => {
+    // rev1 marker 'X' [1,1], rev2 marker 'Y' [2,2]; rev3 replaces 'XY' with
+    // 'Q' (dl=2, il=1). Both proportional images round outward to [1,1], so
+    // both survive on 'Q' and stack with the fresh rev-3 marker: depth 3.
+    const r = computeDeepDiff(['ab', 'aXb', 'aXYb', 'aQb'], opts);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 3);
+    pin(ms[0], [1, 1, 1, 3, 'Q'], r.text);
+    pin(ms[1], [1, 1, 2, 3, 'Q'], r.text);
+    pin(ms[2], [1, 1, 3, 3, 'Q'], r.text);
+    assert.strictEqual(maxDepthOver(r, 1, 1), 3);
+  });
+
+  it('replacement strictly inside a marker matches the default contract-then-expand result', () => {
+    // rev1 marker 'WXYZ' [1,4]; rev2 replaces the interior 'XY' with 'PQR'.
+    // The default path already nests here (contract then expand); the
+    // replacement path must produce the identical outcome: head and tail
+    // intact, interior passing through the whole inserted span.
+    const revs = ['ad', 'aWXYZd', 'aWPQRZd'];
+    const tracked = computeDeepDiff(revs, opts);
+    const plain = computeDeepDiff(revs, { timeout: 0 });
+    assert.deepStrictEqual(tracked, plain);
+    const ms = byPosThenRev(tracked.markers);
+    assert.strictEqual(ms.length, 2);
+    pin(ms[0], [1, 5, 1, 2, 'WPQRZ'], tracked.text);
+    pin(ms[1], [2, 4, 2, 2, 'PQR'], tracked.text);
+  });
+
+  it('replacement at the very start of the text (index 0) remaps in place', () => {
+    // rev1 marker 'BB' [0,1]; rev2 diff [DEL 'BB'][INS 'CC'][EQ ' rest'].
+    const r = computeDeepDiff(['AA rest', 'BB rest', 'CC rest'], opts);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 2);
+    pin(ms[0], [0, 1, 1, 2, 'CC'], r.text);
+    pin(ms[1], [0, 1, 2, 2, 'CC'], r.text);
+  });
+
+  it('chain of six successive replacements of one word accumulates depth monotonically', () => {
+    const chain = ['w AAA z', 'w BBB z', 'w CCC z', 'w DDD z', 'w EEE z', 'w FFF z', 'w GGG z'];
+    let prevDepth = 0;
+    for (let k = 2; k <= chain.length; k++) {
+      const r = computeDeepDiff(chain.slice(0, k), opts);
+      const depth = maxDepthOver(r, 2, 4); // the reworked word sits at [2,4]
+      assert.ok(depth >= prevDepth, `depth must never reset (prefix ${k}: ${depth} < ${prevDepth})`);
+      assert.strictEqual(depth, k - 1,
+        `after ${k - 1} replacement(s) the word should be ${k - 1} deep, got ${depth}`);
+      prevDepth = depth;
+    }
+    // Every surviving marker keeps its birth revision: one per revision 1..6.
+    const final = computeDeepDiff(chain, opts);
+    assert.deepStrictEqual(
+      final.markers.map(m => m.revision).sort((a, b) => a - b),
+      [1, 2, 3, 4, 5, 6]);
+    final.markers.forEach(m => {
+      assert.strictEqual(m.lastTouched, 6, 'every marker was reworked by the last revision');
+      assert.strictEqual(final.text.slice(m.start, m.end + 1), 'GGG');
+    });
+  });
+
+  it('remapped markers never split surrogate pairs (final snapping still applies)', () => {
+    // 🙂/🙁/🙃 share the high surrogate \ud83d, so each replacement's
+    // DELETE+INSERT pair carries lone low surrogates. The remap operates on
+    // code units; the final snapping pass must still widen marker edges off
+    // intra-pair positions.
+    const r = computeDeepDiff(['hi 🙂 there', 'hi 🙁 there', 'hi 🙃 there'], opts);
+    assert.strictEqual(r.text, 'hi 🙃 there');
+    assert.strictEqual(r.markers.length, 2);
+    for (const m of r.markers) {
+      const slice = r.text.slice(m.start, m.end + 1);
+      assert.strictEqual(slice, '🙃', 'marker must cover the whole emoji');
+      assert.ok(!/^[\udc00-\udfff]/.test(slice), 'must not start mid-pair');
+      assert.ok(!/[\ud800-\udbff]$/.test(slice), 'must not end mid-pair');
+    }
+    assert.deepStrictEqual(r.markers.map(m => m.revision).sort((a, b) => a - b), [1, 2],
+      'reworked emoji should be depth 2');
+  });
+
+  it('composes with trackDeletions: the replacement still records a tombstone', () => {
+    const r = computeDeepDiff(['ab', 'aXYZb', 'aPQb'],
+      { ...opts, trackDeletions: true });
+    assert.deepStrictEqual(r.deletions, [{ index: 1, text: 'XYZ', revision: 2 }]);
+    const ms = byPosThenRev(r.markers);
+    assert.strictEqual(ms.length, 2);
+    pin(ms[0], [1, 2, 1, 2, 'PQ'], r.text);
+    pin(ms[1], [1, 2, 2, 2, 'PQ'], r.text);
+  });
+
+  it('composes with normalize: remapped and fresh markers are different revisions, never merged', () => {
+    const r = computeDeepDiff(['ab', 'aXYZb', 'aPQb'], { ...opts, normalize: true });
+    assert.strictEqual(r.markers.length, 2, 'normalize must not collapse the depth stack');
+    assert.deepStrictEqual(r.markers.map(m => m.revision).sort((a, b) => a - b), [1, 2]);
+    assert.strictEqual(maxDepthOver(r, 1, 2), 2);
+  });
+
+  it('deepDiffHtml passes trackReplacements through (nested tags over the rework)', () => {
+    const revs = ['The quick brown fox', 'The quick red fox', 'The quick crimson fox'];
+    const plain = deepDiffHtml(revs, { timeout: 0, dataAttributes: true });
+    const tracked = deepDiffHtml(revs, { timeout: 0, dataAttributes: true, trackReplacements: true });
+    assert.ok(!plain.includes('data-depth="2"'), 'default stays depth 1');
+    assert.ok(tracked.includes('data-depth="2"'), 'tracked rework should nest to depth 2');
+    // Tags stay balanced
+    const opens = (tracked.match(/<ins/g) || []).length;
+    const closes = (tracked.match(/<\/ins>/g) || []).length;
+    assert.strictEqual(opens, closes);
+  });
+
+});

@@ -70,6 +70,17 @@ class Marker {
  *   born in the same revision that overlap or sit within `joinGap` characters
  *   of each other (see {@link normalizeMarkers}). `true` is shorthand for
  *   `{ joinGap: 0 }`. Markers from different revisions are never merged.
+ * @param {boolean} [options.trackReplacements=false] - Treat an adjacent
+ *   DELETE+INSERT pair in a revision's diff as a *replacement*: markers
+ *   overlapping the deleted range are remapped onto the inserted text
+ *   (proportionally, rounded outward) instead of being killed or contracted.
+ *   The insertion still gets its own fresh marker, so the remapped old marker
+ *   and the new marker stack — "delete a phrase and retype it" deepens heat
+ *   rather than resetting it. Marker identity is preserved: `revision` stays
+ *   the birth revision; `lastTouched` updates to the current revision.
+ *   Pure deletions (no adjacent insert) still kill/contract as before.
+ *   Recommended for fine-grained histories (keystroke-level snapshots);
+ *   leave off for coarse committed revisions. Default output is unchanged.
  * @returns {{ text: string, markers: Marker[], revisionCount: number, deletions?: Tombstone[] }}
  */
 export function computeDeepDiff(revisions, options = {}) {
@@ -77,7 +88,8 @@ export function computeDeepDiff(revisions, options = {}) {
     skipEmpty = true,
     timeout = 1,
     trackDeletions = false,
-    normalize = false
+    normalize = false,
+    trackReplacements = false
   } = options;
 
   const dmp = new DiffMatchPatch();
@@ -105,7 +117,7 @@ export function computeDeepDiff(revisions, options = {}) {
     dmp.diff_cleanupEfficiency(diffs);
 
     // Transform existing markers through this diff
-    transformMarkers(markers, diffs, i);
+    transformMarkers(markers, diffs, i, trackReplacements);
 
     if (deletions) {
       // Transform existing tombstones first, then record this revision's
@@ -172,8 +184,15 @@ export function computeDeepDiff(revisions, options = {}) {
  * - Insert at exactly `marker.end + 1` leaves the marker unchanged.
  * - Delete ending at exactly `marker.start - 1` shifts the marker left.
  * - Delete starting at exactly `marker.end` contracts the marker by one.
+ *
+ * When `trackReplacements` is on, an adjacent DELETE+INSERT pair is handled
+ * jointly as a replacement (see {@link remapThroughReplacement}) instead of
+ * as an independent delete followed by an independent insert. After
+ * diff_cleanupMerge (which every dmp cleanup pass ends with), a DELETE always
+ * precedes its adjacent INSERT and no empty ops survive, so pairing on
+ * "DELETE immediately followed by INSERT" catches every replacement.
  */
-function transformMarkers(markers, diffs, revision = 0) {
+function transformMarkers(markers, diffs, revision = 0, trackReplacements = false) {
   // Sort by start position for consistent processing
   markers.sort((a, b) => a.start - b.start);
 
@@ -182,7 +201,8 @@ function transformMarkers(markers, diffs, revision = 0) {
 
     let index = 0;
 
-    for (const [op, text] of diffs) {
+    for (let d = 0; d < diffs.length; d++) {
+      const [op, text] = diffs[d];
       const len = text.length;
 
       if (op === DIFF_INSERT) {
@@ -196,6 +216,17 @@ function transformMarkers(markers, diffs, revision = 0) {
         }
         index += len;
       } else if (op === DIFF_DELETE) {
+        if (trackReplacements && d + 1 < diffs.length &&
+            diffs[d + 1][0] === DIFF_INSERT) {
+          // Replacement: handle the DELETE and the INSERT as one operation,
+          // then skip the INSERT (it was consumed here). The inserted text
+          // occupies new-text coordinates, so index advances by its length.
+          remapThroughReplacement(marker, index, len, diffs[d + 1][1].length, revision);
+          index += diffs[d + 1][1].length;
+          d++;
+          continue;
+        }
+
         const delEnd = index + len - 1;  // Inclusive end of deletion
 
         if (delEnd < marker.start) {
@@ -230,6 +261,109 @@ function transformMarkers(markers, diffs, revision = 0) {
       }
     }
   }
+}
+
+/**
+ * Transform one marker through a replacement — an adjacent DELETE+INSERT
+ * pair (only used when `trackReplacements` is on).
+ *
+ * Coordinates: `index` is the position of the replacement in the
+ * progressively-updated (new-text) frame the per-marker loop maintains. The
+ * deleted old-text span is `[index, index + delLen - 1]`; the inserted text
+ * occupies `[index, index + insLen - 1]` in the new text.
+ *
+ * Motivation (discovered building demos/living-draft.html): diff-match-patch
+ * reports "delete a phrase and retype it" — the dominant rework gesture at
+ * fine snapshot granularity — as DELETE+INSERT. Treating the two
+ * independently kills any marker fully covered by the DELETE and gives the
+ * INSERT a fresh depth-1 marker, so reworking RESETS heat. Here instead the
+ * old marker rides onto the inserted text and the fresh insertion marker
+ * (added later by addInsertionMarkers, exactly as usual) stacks on top of
+ * it: rework accumulates depth.
+ *
+ * Semantics, case by case:
+ * - Replacement entirely before the marker: net shift by (insLen - delLen),
+ *   identical to the default delete-then-insert composition.
+ * - Replacement entirely after the marker (delete starts at or past
+ *   `marker.end + 1`): no change, identical to default.
+ * - Marker intersecting the deleted range: the overlapped portion is mapped
+ *   PROPORTIONALLY onto the inserted text — the marker's relative coverage
+ *   of the deleted span becomes the same relative span of the inserted text,
+ *   rounded OUTWARD (start floors, end ceils), so the remapped span is never
+ *   empty and two markers that tiled the deleted span tile the inserted one.
+ *   Any marker portion outside the replacement stays intact: a head before
+ *   the deleted range keeps its position (text before `index` is
+ *   untouched); a tail past the deleted range shifts by the net length
+ *   delta. Consequences worth spelling out:
+ *   - Marker exactly equal to the deleted range: remaps to exactly the
+ *     inserted range (relative coverage 100%), whatever the length change.
+ *   - Marker strictly inside the deleted range: remaps to the proportional
+ *     sub-span of the inserted text (at least one character, thanks to
+ *     outward rounding — even when the insert is much shorter than the
+ *     delete, in which case several markers may remap onto overlapping
+ *     spans and stack; that is the honest reading: all of them were
+ *     rewritten into this text).
+ *   - Marker straddling a replacement edge: the outside portion survives
+ *     untouched and the marker extends over the proportional part of the
+ *     inserted span — one contiguous marker (start/end are single values),
+ *     never a split.
+ *   - Multiple markers over one replacement each remap independently (the
+ *     per-marker loop already guarantees this).
+ * - Identity: `revision` (birth) is untouched; `lastTouched` becomes the
+ *   current revision; `enabled` stays true — a remap never kills a marker.
+ * - Pure deletes (no adjacent INSERT) never reach this function and keep
+ *   the default kill/contract semantics; likewise a DELETE and an INSERT
+ *   separated by an EQUAL are unrelated edits, not a replacement.
+ * - Zero-length ops cannot occur: dmp's cleanupMerge drops empty ops, so
+ *   `delLen >= 1` and `insLen >= 1` (no division by zero, and the mapped
+ *   span is always within `[0, insLen - 1]`).
+ * - Order of operations downstream is unchanged: remapped edges can land on
+ *   a surrogate half, and computeDeepDiff's final snapping widens them off
+ *   intra-pair positions as it does for every marker; `normalize` runs after
+ *   that and only merges same-revision markers, so a remapped old marker
+ *   never merges with the fresh insertion marker — the depth signal
+ *   survives normalization.
+ */
+function remapThroughReplacement(marker, index, delLen, insLen, revision) {
+  const delEnd = index + delLen - 1;  // Inclusive end of the deleted span
+  const delta = insLen - delLen;      // Net length change of the replacement
+
+  if (delEnd < marker.start) {
+    // Replacement entirely before the marker: net shift.
+    // (Matches the default path: delete shifts left by delLen, then the
+    // insert — now at or before the shifted start — shifts right by insLen.)
+    marker.shift(delta);
+    return;
+  }
+
+  if (index > marker.end) {
+    // Replacement entirely after the marker: no change. This includes the
+    // boundary `index === marker.end + 1` (delete starting just past the
+    // marker), mirroring the default no-change rule there. Note the default
+    // "delete starting at exactly marker.end contracts by one" boundary is
+    // deliberately absorbed into the remap below: touching the deleted
+    // range at all counts as being part of the rework.
+    return;
+  }
+
+  // Marker intersects the deleted range: remap proportionally.
+  // Overlap of [marker.start, marker.end] with [index, delEnd], expressed
+  // relative to the deleted span (0-based, inclusive).
+  const overlapStart = Math.max(marker.start, index) - index;
+  const overlapEnd = Math.min(marker.end, delEnd) - index;
+
+  // Proportional projection onto the inserted text, rounded outward:
+  // start floors, end ceils (computed on the exclusive bound, then made
+  // inclusive again). Guarantees mappedStart <= mappedEnd and both within
+  // [0, insLen - 1].
+  const mappedStart = Math.floor((overlapStart * insLen) / delLen);
+  const mappedEnd = Math.ceil(((overlapEnd + 1) * insLen) / delLen) - 1;
+
+  // Portions outside the replacement survive intact: a head before `index`
+  // keeps its position; a tail past `delEnd` shifts by the net delta.
+  marker.start = marker.start < index ? marker.start : index + mappedStart;
+  marker.end = marker.end > delEnd ? marker.end + delta : index + mappedEnd;
+  marker.lastTouched = revision;
 }
 
 /**
