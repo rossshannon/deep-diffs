@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep Diffs — Demonstrations</title>
+<style>
+  :root {
+    --bg: #faf8f3;
+    --bg-card: #ffffff;
+    --ink: #211c15;
+    --ink-soft: #5c5449;
+    --ink-faint: #8a8074;
+    --accent: #b45309;
+    --accent-soft: rgba(180, 83, 9, 0.09);
+    --rule: #e4ddd1;
+    --rule-strong: #d3cabb;
+    --shadow: 0 1px 2px rgba(33, 28, 21, 0.05), 0 6px 24px -8px rgba(33, 28, 21, 0.12);
+    --shadow-hover: 0 2px 4px rgba(33, 28, 21, 0.06), 0 14px 36px -10px rgba(33, 28, 21, 0.20);
+    --badge-bg: #efe9dd;
+    --code-bg: #f1ece2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171410;
+      --bg-card: #201c16;
+      --ink: #eae4d8;
+      --ink-soft: #b0a798;
+      --ink-faint: #857c6d;
+      --accent: #e0a24a;
+      --accent-soft: rgba(224, 162, 74, 0.12);
+      --rule: #322c23;
+      --rule-strong: #443c30;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 24px -8px rgba(0, 0, 0, 0.5);
+      --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 14px 36px -10px rgba(0, 0, 0, 0.6);
+      --badge-bg: #2c271e;
+      --code-bg: #2a251d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #faf8f3;
+    --bg-card: #ffffff;
+    --ink: #211c15;
+    --ink-soft: #5c5449;
+    --ink-faint: #8a8074;
+    --accent: #b45309;
+    --accent-soft: rgba(180, 83, 9, 0.09);
+    --rule: #e4ddd1;
+    --rule-strong: #d3cabb;
+    --shadow: 0 1px 2px rgba(33, 28, 21, 0.05), 0 6px 24px -8px rgba(33, 28, 21, 0.12);
+    --shadow-hover: 0 2px 4px rgba(33, 28, 21, 0.06), 0 14px 36px -10px rgba(33, 28, 21, 0.20);
+    --badge-bg: #efe9dd;
+    --code-bg: #f1ece2;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #171410;
+    --bg-card: #201c16;
+    --ink: #eae4d8;
+    --ink-soft: #b0a798;
+    --ink-faint: #857c6d;
+    --accent: #e0a24a;
+    --accent-soft: rgba(224, 162, 74, 0.12);
+    --rule: #322c23;
+    --rule-strong: #443c30;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 24px -8px rgba(0, 0, 0, 0.5);
+    --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 14px 36px -10px rgba(0, 0, 0, 0.6);
+    --badge-bg: #2c271e;
+    --code-bg: #2a251d;
+    color-scheme: dark;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.25s ease, color 0.25s ease;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 32px 64px; }
+
+  /* ---------- header ---------- */
+  header { padding: 56px 0 40px; border-bottom: 1px solid var(--rule); position: relative; }
+  .kicker {
+    font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin-bottom: 14px;
+  }
+  h1 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: clamp(30px, 4.5vw, 44px); line-height: 1.15; font-weight: 600;
+    letter-spacing: -0.01em; max-width: 22ch; text-wrap: balance;
+  }
+  .lede {
+    margin-top: 18px; max-width: 62ch; font-size: 17px; line-height: 1.65; color: var(--ink-soft);
+  }
+  .lede em {
+    font-style: normal;
+    background: linear-gradient(transparent 55%, var(--accent-soft) 55%);
+    color: var(--ink);
+  }
+  .refs { margin-top: 18px; font-size: 14px; color: var(--ink-faint); }
+  .refs a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  .refs a:hover { border-bottom-color: var(--accent); }
+  .refs .sep { margin: 0 10px; opacity: 0.5; }
+
+  #theme-toggle {
+    position: absolute; top: 56px; right: 0;
+    background: var(--bg-card); color: var(--ink-soft);
+    border: 1px solid var(--rule-strong); border-radius: 999px;
+    padding: 6px 14px; font: 600 13px/1.4 inherit; font-family: inherit;
+    cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  #theme-toggle:hover { color: var(--ink); border-color: var(--ink-faint); }
+
+  /* ---------- catalogue ---------- */
+  .catalogue { padding-top: 40px; display: grid; gap: 32px; }
+  .grid-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+
+  .card {
+    background: var(--bg-card); border: 1px solid var(--rule);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card:hover { box-shadow: var(--shadow-hover); border-color: var(--rule-strong); }
+
+  .card.featured { flex-direction: row; }
+  .card.featured .shot { flex: 1 1 58%; min-width: 0; }
+  .card.featured .body { flex: 1 1 42%; min-width: 0; }
+
+  .shot {
+    display: block; position: relative; overflow: hidden;
+    background: var(--code-bg);
+    border-bottom: 1px solid var(--rule);
+  }
+  .card.featured .shot { border-bottom: none; border-right: 1px solid var(--rule); }
+  .shot img {
+    display: block; width: 100%; height: 100%;
+    aspect-ratio: 16 / 10; object-fit: cover; object-position: top left;
+  }
+  .shot img.shot-dark { display: none; }
+  @media (prefers-color-scheme: dark) {
+    .shot img.shot-light { display: none; }
+    .shot img.shot-dark { display: block; }
+  }
+  :root[data-theme="light"] .shot img.shot-light { display: block; }
+  :root[data-theme="light"] .shot img.shot-dark { display: none; }
+  :root[data-theme="dark"] .shot img.shot-light { display: none; }
+  :root[data-theme="dark"] .shot img.shot-dark { display: block; }
+
+  .body { padding: 26px 28px 24px; display: flex; flex-direction: column; gap: 12px; }
+
+  .card-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .num {
+    font-size: 12px; letter-spacing: 0.14em; color: var(--accent);
+    font-weight: 600; font-variant-numeric: tabular-nums; text-transform: uppercase;
+  }
+  h2 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 24px; font-weight: 600; letter-spacing: -0.005em; line-height: 1.2;
+  }
+  h2 a { color: inherit; text-decoration: none; }
+  h2 a:hover { color: var(--accent); }
+  .badge {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--badge-bg); color: var(--ink-soft);
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  }
+  .hook { color: var(--ink-soft); font-size: 15px; }
+
+  .card ul { list-style: none; display: grid; gap: 6px; font-size: 14px; color: var(--ink-soft); }
+  .card ul li { padding-left: 18px; position: relative; }
+  .card ul li::before {
+    content: ""; position: absolute; left: 2px; top: 0.62em;
+    width: 7px; height: 7px; border-radius: 2px;
+    background: var(--accent); opacity: 0.55;
+  }
+  .card ul li strong { color: var(--ink); font-weight: 600; }
+
+  .themes {
+    font-size: 13.5px; color: var(--ink-faint);
+    border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 2px;
+  }
+  .themes b {
+    color: var(--accent); font-weight: 600; font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-right: 6px;
+  }
+
+  .open-link {
+    margin-top: auto; align-self: flex-start;
+    color: var(--accent); font-weight: 600; font-size: 14px; text-decoration: none;
+  }
+  .open-link::after { content: " \2192"; transition: margin-left 0.15s; }
+  .open-link:hover::after { margin-left: 3px; }
+
+  code {
+    font: 0.88em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--code-bg); border: 1px solid var(--rule);
+    padding: 1px 5px; border-radius: 4px;
+  }
+
+  /* ---------- footer ---------- */
+  footer { margin-top: 56px; border-top: 1px solid var(--rule); padding-top: 32px; }
+  footer h3 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 19px; font-weight: 600; margin-bottom: 10px;
+  }
+  footer p { max-width: 68ch; font-size: 14.5px; color: var(--ink-soft); }
+  footer p + p { margin-top: 8px; }
+  footer a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  footer a:hover { border-bottom-color: var(--accent); }
+  .colophon { margin-top: 28px; font-size: 13px; color: var(--ink-faint); }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 960px) {
+    .card.featured { flex-direction: column; }
+    .card.featured .shot { border-right: none; border-bottom: 1px solid var(--rule); }
+    .grid-pair { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 20px 48px; }
+    header { padding: 40px 0 32px; }
+    #theme-toggle { position: static; margin-top: 18px; }
+    .body { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="kicker">Demo suite &middot; Five exhibits</p>
+    <h1>Deep Diffs — Demonstrations</h1>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">Theme: auto</button>
+    <p class="lede">
+      A deep diff chains the diffs between <em>many</em> revisions of a document into a single view:
+      each edit wraps the text in another layer of highlight, so passages that were reworked again and
+      again glow hottest — a heatmap of editorial activity laid over the final draft. The five demos
+      below take that one idea and point it at playgrounds, replays, live writing, collaboration, and
+      real git histories.
+    </p>
+    <p class="refs">
+      <a href="https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf">Shannon, Quigley &amp; Nixon, AVI&nbsp;2010</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/rossshannon/deep-diffs">GitHub — rossshannon/deep-diffs</a>
+    </p>
+  </header>
+
+  <main class="catalogue">
+
+    <!-- 1 · Playground (flagship) -->
+    <article class="card featured">
+      <a class="shot" href="playground.html" tabindex="-1" aria-hidden="true">
+        <img class="shot-light" src="../docs/screenshots/playground.png" alt="Deep Diffs Playground, light theme: revision cards beside a heat-highlighted manuscript view">
+        <img class="shot-dark" src="../docs/screenshots/playground-dark.png" alt="Deep Diffs Playground, dark theme">
+      </a>
+      <div class="body">
+        <div class="card-head">
+          <span class="num">No. 1</span>
+          <h2><a href="playground.html">Playground</a></h2>
+        </div>
+        <p class="hook">The flagship demo: build or paste a revision history and watch the deep diff re-render as you edit it.</p>
+        <ul>
+          <li><strong>Editable revision rail</strong> — add, delete, reorder, and edit revisions inline, plus a bulk-paste mode</li>
+          <li><strong>Two heat modes</strong> — Frequency (amber deepening with edit overlap) and Recency (cool slate to hot vermilion)</li>
+          <li><strong>Revision scrubber</strong> with arrow-key stepping and hover tooltips (&ldquo;added in v3 · last touched v6 · depth 2&rdquo;)</li>
+          <li><strong>Copy-HTML export</strong> and four crafted sample histories whose edits deliberately nest</li>
+        </ul>
+        <p class="themes"><b>Explores</b> The core technique as a manipulable object — chained diffs you can poke at.</p>
+        <a class="open-link" href="playground.html">Open the playground</a>
+      </div>
+    </article>
+
+    <div class="grid-pair">
+
+      <!-- 2 · Draft Archaeology -->
+      <article class="card">
+        <a class="shot" href="draft-archaeology.html" tabindex="-1" aria-hidden="true">
+          <img class="shot-light" src="../docs/screenshots/archaeology.png" alt="Draft Archaeology, light theme: essay replay with heat strata and core-sample minimap">
+          <img class="shot-dark" src="../docs/screenshots/archaeology-dark.png" alt="Draft Archaeology, dark theme">
+        </a>
+        <div class="body">
+          <div class="card-head">
+            <span class="num">No. 2</span>
+            <h2><a href="draft-archaeology.html">Draft Archaeology</a></h2>
+          </div>
+          <p class="hook">A cinematic replay of a document being written — heat accumulates wherever the writer kept circling back.</p>
+          <ul>
+            <li>Two hand-authored histories: a 14-revision personal essay and an 8-revision speech opening</li>
+            <li>Animated morphs — insertions flash bright then settle into their heat colour; deletions linger as struck-through ghosts</li>
+            <li>A &ldquo;core sample&rdquo; strata canvas doubling as a click-and-drag minimap</li>
+            <li>Scrubber ticks that glow in proportion to each revision&rsquo;s churn</li>
+          </ul>
+          <p class="themes"><b>Explores</b> Writing as stratigraphy — replaying process, not just comparing endpoints.</p>
+          <a class="open-link" href="draft-archaeology.html">Open the replay</a>
+        </div>
+      </article>
+
+      <!-- 3 · The Living Draft -->
+      <article class="card">
+        <a class="shot" href="living-draft.html" tabindex="-1" aria-hidden="true">
+          <img class="shot-light" src="../docs/screenshots/living-draft.png" alt="The Living Draft, light theme: live writing surface with ambient heat and stats">
+          <img class="shot-dark" src="../docs/screenshots/living-draft-dark.png" alt="The Living Draft, dark theme">
+        </a>
+        <div class="body">
+          <div class="card-head">
+            <span class="num">No. 3</span>
+            <h2><a href="living-draft.html">The Living Draft</a></h2>
+          </div>
+          <p class="hook">A live writing surface: snapshots auto-commit as you type, and the heat glows beneath the words in real time.</p>
+          <ul>
+            <li><strong>Geology vs Embers</strong> — accumulated strata, or exponentially decaying heat that shows <em>current</em> attention</li>
+            <li>Watch a scripted writer with human typing rhythm, or write (and rework) yourself</li>
+            <li>Delete-then-retype is treated as replacement, so rewriting a phrase deepens its heat instead of resetting it</li>
+            <li>Heat-strip minimap and live stats: churn ratio, deepest edit, most-reworked phrase</li>
+          </ul>
+          <p class="themes"><b>Explores</b> Deep diffs as ambient feedback while writing, rather than retrospection.</p>
+          <a class="open-link" href="living-draft.html">Open the draft</a>
+        </div>
+      </article>
+
+      <!-- 4 · Collaboration Lens -->
+      <article class="card">
+        <a class="shot" href="collab-lens.html" tabindex="-1" aria-hidden="true">
+          <img class="shot-light" src="../docs/screenshots/collab.png" alt="Collaboration Lens, light theme: author-coloured document with lens controls">
+          <img class="shot-dark" src="../docs/screenshots/collab-dark.png" alt="Collaboration Lens, dark theme">
+        </a>
+        <div class="body">
+          <div class="card-head">
+            <span class="num">No. 4</span>
+            <h2><a href="collab-lens.html">Collaboration Lens</a></h2>
+          </div>
+          <p class="hook">One shared document, three lenses over the same nested markers: heat, authorship, and consensus.</p>
+          <ul>
+            <li><strong>Heat / Author / Consensus</strong> lenses on keys 1–3 — depth, who wrote it, and who touched it last</li>
+            <li>An edit-war detector that surfaces the most contested passages</li>
+            <li>Timeline scrubbing and chip-hover isolation of a single author&rsquo;s contributions</li>
+            <li>Two depth-4 specimens of colleagues ping-ponging the same sentence; CVD-validated author hues in both themes</li>
+          </ul>
+          <p class="themes"><b>Explores</b> Deep diffs &times; History Flow — contested versus settled ground in group writing.</p>
+          <a class="open-link" href="collab-lens.html">Open the lens</a>
+        </div>
+      </article>
+
+      <!-- 5 · Git report -->
+      <article class="card">
+        <a class="shot" href="git-report.html" tabindex="-1" aria-hidden="true">
+          <img class="shot-light" src="../docs/screenshots/git-report.png" alt="Generated deep-diff git report, light theme: an essay's 15-commit history as heat">
+          <img class="shot-dark" src="../docs/screenshots/git-report-dark.png" alt="Generated deep-diff git report, dark theme">
+        </a>
+        <div class="body">
+          <div class="card-head">
+            <span class="num">No. 5</span>
+            <h2><a href="git-report.html">Git Report</a></h2>
+            <span class="badge">Generated artifact</span>
+          </div>
+          <p class="hook">Not hand-built: this is the actual output of <code>npx deep-diffs-git &lt;file&gt;</code>, run on an essay reworked over 15 commits by three authors.</p>
+          <ul>
+            <li>Turns any prose file&rsquo;s git history — READMEs, docs, ADRs — into one self-contained HTML report</li>
+            <li>Follows renames through history and evenly samples long histories (first and last commits always kept)</li>
+            <li>Edit-depth and recency heat modes, toggleable inside the report; churn-dot revision ledger</li>
+            <li>Zero new dependencies: the library, diff-match-patch, and <code>git</code> itself</li>
+          </ul>
+          <p class="themes"><b>Explores</b> The technique applied to real version control — every repo already has the data.</p>
+          <a class="open-link" href="git-report.html">Open the report</a>
+        </div>
+      </article>
+
+    </div>
+
+  </main>
+
+  <footer>
+    <h3>Under the hood</h3>
+    <p>
+      Every demo above is driven by the same library: the marker algebra in <code>src/deep-diff.js</code>
+      chains diff-match-patch output across revisions and survives edits landing inside earlier edits —
+      the demos differ only in how they colour and animate the result.
+    </p>
+    <p>
+      Where the idea could go next: <a href="../docs/FUTURE-DIRECTIONS.md">Future directions</a>.
+      What currently bends or breaks: <a href="../docs/known-issues.md">Known issues</a>.
+    </p>
+    <p class="colophon">
+      Deep Diffs · Shannon, Quigley &amp; Nixon, AVI 2010 · Every page here is self-contained and runs from <code>file://</code>.
+    </p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById("theme-toggle");
+  var KEY = "deep-diffs-theme";
+  var order = ["auto", "light", "dark"];
+  var current = "auto";
+
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved === "light" || saved === "dark") current = saved;
+  } catch (e) { /* file:// storage may be unavailable */ }
+
+  function apply() {
+    if (current === "auto") {
+      root.removeAttribute("data-theme");
+    } else {
+      root.setAttribute("data-theme", current);
+    }
+    btn.textContent = "Theme: " + current;
+    try {
+      if (current === "auto") localStorage.removeItem(KEY);
+      else localStorage.setItem(KEY, current);
+    } catch (e) { /* ignore */ }
+  }
+
+  btn.addEventListener("click", function () {
+    current = order[(order.indexOf(current) + 1) % order.length];
+    apply();
+  });
+
+  apply();
+})();
+</script>
+</body>
+</html>
