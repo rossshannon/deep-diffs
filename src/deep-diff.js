@@ -19,10 +19,12 @@ const DIFF_EQUAL = 0;
  * shift, expand, or contract to track "the same" logical region.
  */
 class Marker {
-  constructor(start, end) {
+  constructor(start, end, revision = 0) {
     this.start = start;
     this.end = end;
     this.enabled = true;
+    this.revision = revision;      // Revision index (1-based) that created this marker
+    this.lastTouched = revision;   // Most recent revision that modified this region
   }
 
   get length() {
@@ -80,15 +82,16 @@ export function computeDeepDiff(revisions, options = {}) {
     dmp.diff_cleanupEfficiency(diffs);
 
     // Transform existing markers through this diff
-    transformMarkers(markers, diffs);
+    transformMarkers(markers, diffs, i);
 
     // Add new markers for insertions in this revision
-    addInsertionMarkers(markers, diffs);
+    addInsertionMarkers(markers, diffs, i);
   }
 
   return {
     text: texts[texts.length - 1],
-    markers: markers.filter(m => m.enabled)
+    markers: markers.filter(m => m.enabled),
+    revisionCount: texts.length
   };
 }
 
@@ -96,7 +99,7 @@ export function computeDeepDiff(revisions, options = {}) {
  * Transform existing markers based on a diff operation set.
  * Markers shift, expand, or contract as text is inserted/deleted.
  */
-function transformMarkers(markers, diffs) {
+function transformMarkers(markers, diffs, revision = 0) {
   // Sort by start position for consistent processing
   markers.sort((a, b) => a.start - b.start);
 
@@ -115,6 +118,7 @@ function transformMarkers(markers, diffs) {
         } else if (index > marker.start && index <= marker.end) {
           // Insertion within marker: expand
           marker.expand(len);
+          marker.lastTouched = revision;
         }
         index += len;
       } else if (op === DIFF_DELETE) {
@@ -134,13 +138,16 @@ function transformMarkers(markers, diffs) {
           const overlap = delEnd - marker.start + 1;  // Part inside marker
           marker.shift(-preOverlap);
           marker.contract(overlap);
+          marker.lastTouched = revision;
         } else if (index > marker.start && delEnd >= marker.end) {
           // Deletion overlaps end of marker
           const overlap = marker.end - index + 1;
           marker.contract(overlap);
+          marker.lastTouched = revision;
         } else {
           // Deletion entirely within marker: contract
           marker.contract(len);
+          marker.lastTouched = revision;
         }
         // Note: index doesn't advance for deletions (text removed from old)
       } else {
@@ -154,12 +161,12 @@ function transformMarkers(markers, diffs) {
 /**
  * Add new markers for all insertions in a diff set.
  */
-function addInsertionMarkers(markers, diffs) {
+function addInsertionMarkers(markers, diffs, revision = 0) {
   let index = 0;
 
   for (const [op, text] of diffs) {
     if (op === DIFF_INSERT) {
-      markers.push(new Marker(index, index + text.length - 1));
+      markers.push(new Marker(index, index + text.length - 1, revision));
       index += text.length;
     } else if (op === DIFF_EQUAL) {
       index += text.length;
@@ -201,10 +208,12 @@ export function renderWithMarkers(text, markers, options = {}) {
     return a.type === 'close' ? -1 : 1;
   });
 
-  // Build output by interleaving text and tags
-  const chars = [...text];
-  const openTag = className 
-    ? `<${tagName} class="${className}">` 
+  // Build output by interleaving text and tags.
+  // Marker indices are UTF-16 code unit offsets (as produced by
+  // diff-match-patch), so slice the string directly — splitting into
+  // code points would misalign tags around astral characters.
+  const openTag = className
+    ? `<${tagName} class="${className}">`
     : `<${tagName}>`;
   const closeTag = `</${tagName}>`;
 
@@ -214,7 +223,7 @@ export function renderWithMarkers(text, markers, options = {}) {
   for (const event of events) {
     // Add text up to this event
     if (event.index > pos) {
-      result += escapeHtml(chars.slice(pos, event.index).join(''));
+      result += escapeHtml(text.slice(pos, event.index));
       pos = event.index;
     }
     // Add tag
@@ -222,8 +231,8 @@ export function renderWithMarkers(text, markers, options = {}) {
   }
 
   // Add remaining text
-  if (pos < chars.length) {
-    result += escapeHtml(chars.slice(pos).join(''));
+  if (pos < text.length) {
+    result += escapeHtml(text.slice(pos));
   }
 
   return result;
