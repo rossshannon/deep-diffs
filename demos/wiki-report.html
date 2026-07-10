@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="authors">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep diff · Ship of Theseus</title>
+<style>
+:root {
+  --bg: #faf8f4; --fg: #23201a; --muted: #7a7468; --rule: #e6e1d6;
+  --card: #ffffff; --accent: #b4531f; --chrome-bg: #f2efe8;
+  --d1:#fdf2c3; --d2:#fbdf90; --d3:#f8c260; --d4:#f09c44; --d5:#e26f39; --d6:#cc4b2e;
+  --a1:#e3e7ea; --a2:#d3dfe8; --a3:#cfe3d6; --a4:#f4e3a5; --a5:#f6c47e; --a6:#ef9450;
+  --d6fg:#fff7ef; --a6fg:#2b1a10;
+  /* Author hues: Okabe–Ito derived, as space-separated RGB triplets so they
+     compose as rgb(var(--auN) / alpha). --aux = the "others" bucket. */
+  --au0: 0 114 178;    /* blue */
+  --au1: 230 159 0;    /* orange */
+  --au2: 0 158 115;    /* bluish green */
+  --au3: 213 94 0;     /* vermillion */
+  --au4: 86 180 233;   /* sky blue */
+  --au5: 204 121 167;  /* reddish purple */
+  --au6: 136 118 43;   /* olive (yellow, darkened for light bg) */
+  --au7: 108 91 173;   /* violet */
+  --aux: 128 124 116;  /* others: warm grey */
+  --ascale: 1;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#16181c; --fg:#dcd8cf; --muted:#8f8a80; --rule:#2c2f35;
+    --card:#1d2025; --accent:#e08050; --chrome-bg:#1a1d21;
+    --d1:rgba(250,204,21,.14); --d2:rgba(250,190,40,.26); --d3:rgba(248,155,40,.38);
+    --d4:rgba(243,112,50,.50); --d5:rgba(235,80,50,.62); --d6:rgba(220,50,45,.74);
+    --a1:rgba(148,163,184,.16); --a2:rgba(125,155,200,.22); --a3:rgba(110,180,150,.24);
+    --a4:rgba(240,200,90,.30); --a5:rgba(245,150,70,.44); --a6:rgba(240,90,45,.60);
+    --d6fg:#f6ede6; --a6fg:#f6ede6;
+    --au0: 78 156 222;
+    --au1: 235 172 32;
+    --au2: 46 178 134;
+    --au3: 232 116 34;
+    --au4: 108 190 238;
+    --au5: 222 138 182;
+    --au6: 190 170 80;
+    --au7: 146 128 214;
+    --aux: 138 134 126;
+    --ascale: .86;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.page { max-width: 1160px; margin: 0 auto; padding: 2.2rem 2rem 3rem; }
+header.report {
+  border-bottom: 1px solid var(--rule); padding-bottom: 1.2rem; margin-bottom: 1.8rem;
+}
+.eyebrow {
+  font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600; margin: 0 0 .35rem;
+}
+h1.file {
+  margin: 0 0 .4rem; font-size: 1.9rem; font-weight: 650;
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  letter-spacing: -.01em;
+}
+h1.file a { color: inherit; text-decoration: none; }
+h1.file a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+.meta { color: var(--muted); font-size: .88rem; margin: 0; }
+.meta b { color: var(--fg); font-weight: 600; }
+.note {
+  margin: .8rem 0 0; font-size: .84rem; color: var(--muted);
+  border-left: 3px solid var(--accent); padding: .15rem .7rem;
+}
+.controls {
+  display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center;
+  margin-top: 1.1rem;
+}
+.toggle { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; background: var(--chrome-bg); }
+.toggle button {
+  border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .8rem;
+  padding: .3rem .85rem; cursor: pointer;
+}
+:root[data-mode="depth"] .toggle button[data-set="depth"],
+:root[data-mode="age"] .toggle button[data-set="age"],
+:root[data-mode="authors"] .toggle button[data-set="authors"] {
+  background: var(--fg); color: var(--bg);
+}
+.legend { display: inline-flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--muted); flex-wrap: wrap; }
+.legend .chip ins.dd { padding: .18rem .45rem; border-radius: 3px; font-variant-numeric: tabular-nums; }
+:root:not([data-mode="depth"]) #legend-depth { display: none; }
+:root:not([data-mode="age"]) #legend-age { display: none; }
+:root:not([data-mode="authors"]) #legend-authors { display: none; }
+.agebar {
+  display: inline-block; width: 130px; height: 12px; border-radius: 6px; vertical-align: -1px;
+  background: linear-gradient(to right, var(--a1), var(--a2), var(--a3), var(--a4), var(--a5), var(--a6));
+}
+.au-chip { display: inline-flex; align-items: center; gap: .32rem; margin-right: .35rem; }
+.au-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+  vertical-align: -1px; margin-right: .3rem; flex: none;
+}
+.au-chip .au-dot { margin-right: 0; }
+.au-dot[data-au="0"] { background: rgb(var(--au0) / .85); }
+.au-dot[data-au="1"] { background: rgb(var(--au1) / .85); }
+.au-dot[data-au="2"] { background: rgb(var(--au2) / .85); }
+.au-dot[data-au="3"] { background: rgb(var(--au3) / .85); }
+.au-dot[data-au="4"] { background: rgb(var(--au4) / .85); }
+.au-dot[data-au="5"] { background: rgb(var(--au5) / .85); }
+.au-dot[data-au="6"] { background: rgb(var(--au6) / .85); }
+.au-dot[data-au="7"] { background: rgb(var(--au7) / .85); }
+.au-dot[data-au="x"] { background: rgb(var(--aux) / .85); }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 3rem; align-items: start; }
+article.doc {
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 1.02rem; line-height: 1.72; max-width: 68ch;
+  white-space: pre-wrap; overflow-wrap: break-word;
+}
+ins.dd { text-decoration: none; border-radius: 2px; padding: 0 .04em; transition: outline-color .15s; }
+ins.dd[data-d="1"] { --dd: 1; } ins.dd[data-d="2"] { --dd: 2; }
+ins.dd[data-d="3"] { --dd: 3; } ins.dd[data-d="4"] { --dd: 4; }
+ins.dd[data-d="5"] { --dd: 5; } ins.dd[data-d="6"] { --dd: 6; }
+:root[data-mode="depth"] ins.dd[data-d="1"], ins.dd.lg[data-d="1"] { background: var(--d1); }
+:root[data-mode="depth"] ins.dd[data-d="2"], ins.dd.lg[data-d="2"] { background: var(--d2); }
+:root[data-mode="depth"] ins.dd[data-d="3"], ins.dd.lg[data-d="3"] { background: var(--d3); }
+:root[data-mode="depth"] ins.dd[data-d="4"], ins.dd.lg[data-d="4"] { background: var(--d4); }
+:root[data-mode="depth"] ins.dd[data-d="5"], ins.dd.lg[data-d="5"] { background: var(--d5); }
+:root[data-mode="depth"] ins.dd[data-d="6"], ins.dd.lg[data-d="6"] { background: var(--d6); color: var(--d6fg); }
+:root[data-mode="age"] ins.dd[data-a="1"] { background: var(--a1); }
+:root[data-mode="age"] ins.dd[data-a="2"] { background: var(--a2); }
+:root[data-mode="age"] ins.dd[data-a="3"] { background: var(--a3); }
+:root[data-mode="age"] ins.dd[data-a="4"] { background: var(--a4); }
+:root[data-mode="age"] ins.dd[data-a="5"] { background: var(--a5); }
+:root[data-mode="age"] ins.dd[data-a="6"] { background: var(--a6); color: var(--a6fg); }
+/* Authors lens: hue = who introduced the wording, opacity deepens with edit
+   depth — deep diffs fused with History Flow. */
+:root[data-mode="authors"] ins.dd[data-au="0"] { background: rgb(var(--au0) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="1"] { background: rgb(var(--au1) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="2"] { background: rgb(var(--au2) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="3"] { background: rgb(var(--au3) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="4"] { background: rgb(var(--au4) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="5"] { background: rgb(var(--au5) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="6"] { background: rgb(var(--au6) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="7"] { background: rgb(var(--au7) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="x"] { background: rgb(var(--aux) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+article.doc ins.dd:hover { outline: 2px solid var(--accent); outline-offset: 1px; cursor: help; }
+article.doc.focus ins.dd:not(.hit) { opacity: .35; }
+article.doc ins.dd.hit { outline: 2px solid var(--accent); outline-offset: 1px; }
+aside.ledger { position: sticky; top: 1.2rem; max-height: calc(100vh - 2.4rem); overflow: auto; }
+aside.ledger h2 {
+  font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; margin: 0 0 .7rem;
+}
+aside.ledger .hint { font-size: .74rem; color: var(--muted); margin: -.3rem 0 .7rem; }
+ol.commits { list-style: none; margin: 0; padding: 0; }
+li.commit {
+  display: flex; gap: .6rem; align-items: flex-start;
+  padding: .5rem .6rem; border-radius: 8px; cursor: default;
+}
+li.commit:hover, li.commit:focus-visible { background: var(--chrome-bg); outline: none; }
+.dot { flex: none; width: 11px; height: 11px; border-radius: 50%; margin-top: .32rem; border: 1px solid rgba(0,0,0,.12); }
+@media (prefers-color-scheme: dark) { .dot { border-color: rgba(255,255,255,.15); } }
+.dot.m0 { background: transparent; border: 2px solid var(--muted); }
+.dot.m1 { background: var(--d1); } .dot.m2 { background: var(--d2); }
+.dot.m3 { background: var(--d3); } .dot.m4 { background: var(--d5); }
+.dot.m5 { background: var(--d6); }
+.c-body { min-width: 0; display: block; }
+.c-top { display: flex; gap: .5rem; align-items: baseline; min-width: 0; }
+a.sha { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .76rem; color: var(--accent); flex: none; text-decoration: none; }
+a.sha:hover { text-decoration: underline; }
+.subject { font-size: .84rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-meta { display: flex; align-items: center; font-size: .74rem; color: var(--muted); margin-top: .1rem; min-width: 0; }
+.c-meta .au-dot { width: 8px; height: 8px; }
+footer.report {
+  border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1rem;
+  font-size: .8rem; color: var(--muted);
+}
+footer.report a { color: var(--accent); }
+#tip {
+  position: fixed; z-index: 10; max-width: 340px; padding: .45rem .65rem;
+  background: var(--fg); color: var(--bg); border-radius: 6px;
+  font: .76rem/1.45 system-ui, sans-serif; white-space: pre-line;
+  pointer-events: none; opacity: 0; transition: opacity .12s; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+}
+#tip.show { opacity: 1; }
+@media (max-width: 980px) {
+  main { grid-template-columns: 1fr; }
+  aside.ledger { position: static; max-height: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="report">
+  <p class="eyebrow">Deep diff report · Wikipedia</p>
+  <h1 class="file"><a href="https://en.wikipedia.org/wiki/Ship_of_Theseus">Ship of Theseus</a></h1>
+  <p class="meta"><b>en.wikipedia.org</b> · 25 of 2,150 revisions (evenly sampled) · 15 Jul 2003 – 4 Jul 2026 · 1,268 contributors across the full history</p>
+  <p class="note">Fetched live from the MediaWiki API on 10 Jul 2026. Wikitext lightly stripped for readability (templates, refs, tables and file links removed — approximate).</p>
+  <div class="controls">
+    <span class="toggle" role="group" aria-label="Heat mode">
+      <button type="button" data-set="depth">Edit depth</button>
+      <button type="button" data-set="age">Recency</button>
+      <button type="button" data-set="authors">Authors</button>
+    </span>
+    <span class="legend" id="legend-depth">times edited <span class="chip"><ins class="dd lg" data-d="1">×1</ins></span><span class="chip"><ins class="dd lg" data-d="2">×2</ins></span><span class="chip"><ins class="dd lg" data-d="3">×3</ins></span><span class="chip"><ins class="dd lg" data-d="4">×4</ins></span><span class="chip"><ins class="dd lg" data-d="5">×5</ins></span><span class="chip"><ins class="dd lg" data-d="6">×6+</ins></span></span>
+    <span class="legend" id="legend-age">older <span class="agebar"></span> newer</span>
+    <span class="legend" id="legend-authors"><span class="au-chip"><i class="au-dot" data-au="0"></i>CrunchyVersusTheRabbit</span><span class="au-chip"><i class="au-dot" data-au="1"></i>2600:1702:750:17A0:1827:242E:DD78:13ED</span><span class="au-chip"><i class="au-dot" data-au="2"></i>VanFinda</span><span class="au-chip"><i class="au-dot" data-au="3"></i>50.53.2.195</span><span class="au-chip"><i class="au-dot" data-au="4"></i>PEPSI697</span><span class="au-chip"><i class="au-dot" data-au="5"></i>ClueBot NG</span><span class="au-chip"><i class="au-dot" data-au="6"></i>Masterhatch</span><span class="au-chip"><i class="au-dot" data-au="7"></i>Ohnoitsjamie</span><span class="au-chip"><i class="au-dot" data-au="x"></i>others</span></span>
+  </div>
+</header>
+<main>
+  <article class="doc" id="doc"><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="18" data-revs="18" data-touched="19" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+last reworked 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+edited ×1">The </ins><ins class="dd" data-d="1" data-a="5" data-au="6" data-rev="20" data-revs="20" data-touched="20" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+edited ×1">Ship</ins><ins class="dd" data-d="1" data-a="6" data-au="x" data-rev="14" data-revs="14" data-touched="23" data-tip="added 14 Dec 2018 by 146.115.18.74 · “(no edit summary)”
+last reworked 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+edited ×1"> of Theseus</ins><ins class="dd" data-d="2" data-a="6" data-au="4" data-rev="22" data-revs="14,22" data-touched="23" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+edited ×2">, also known as Theseus's Paradox, is a paradox and common</ins><ins class="dd" data-d="1" data-a="6" data-au="x" data-rev="14" data-revs="14" data-touched="23" data-tip="added 14 Dec 2018 by 146.115.18.74 · “(no edit summary)”
+last reworked 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+edited ×1"> thought experiment </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="18" data-revs="18" data-touched="18" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+edited ×1">about</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> whether an object</ins><ins class="dd" data-d="2" data-a="6" data-au="2" data-rev="24" data-revs="15,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> (in the most common stating of the paradox, a ship)</ins> <ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">is the same object after having</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> all of its </ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="18" data-revs="15,18" data-touched="24" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">original </ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">components replaced</ins> <ins class="dd" data-d="2" data-a="6" data-au="2" data-rev="24" data-revs="15,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">with others over time</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">.
+
+In Greek mythology</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">,</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> The</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="18" data-revs="15,18" data-touched="24" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">seus</ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,18,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">,</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,18,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> the</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="18" data-revs="15,18" data-touched="24" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> mythical </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,18,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">king of the city</ins> <ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,18,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">of </ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="18" data-revs="15,18" data-touched="24" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">Athens,</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> rescued the children of Athens from King Minos after slaying the </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">M</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">inotaur and then escaped on</ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">to</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> a </ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">ship going</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> to Delos. E</ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">ach</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> year, the Athenians </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">would </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">commemorate this by taking the </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">craft</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> on a pilgrimage to Delos to hono</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">u</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">r Apollo.</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> Over time, various of its timbers rotted and were replaced.</ins> <ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">A</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> question was raised by ancient philosophers: </ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">If no pieces of the original </ins><ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,19,23,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">remained in</ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> the current ship, was it still the Ship of Theseus? </ins><ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,19,23,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">I</ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">f it was no longer the same, when had it ceased existing as the original ship?</ins><ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,19,23,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4"> Seventeenth-century philosopher</ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> Thomas Hobbes </ins><ins class="dd" data-d="4" data-a="6" data-au="7" data-rev="23" data-revs="15,19,21,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">fur</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">ther</ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> question</ins><ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,19,23,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">ed</ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> how to consider a second ship that had been built entirely from pieces removed from the original.</ins>
+
+<ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">In contemporary philosophy, th</ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">e</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> thought experiment has applicati</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="18" data-revs="15,18" data-touched="24" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">on</ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,18,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">s</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="18" data-revs="15,18" data-touched="24" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> t</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">o the philosophical study of identity over time</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,19,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">. </ins><ins class="dd" data-d="4" data-a="6" data-au="7" data-rev="23" data-revs="15,19,22,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">Within the contemporary philosophy of mind, i</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,19,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">t</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> has inspired a variety of proposed solutions </ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">and concepts </ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">regarding</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> the persistence of personal identity.
+
+History
+In its original formulation, the &quot;Ship of Theseus&quot; paradox concerns a debate over whether a ship that </ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,19,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">has </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">had all of its components replaced one by one would remain the same ship. The account of the problem has been preserved by Plutarch in his Life of Theseus:</ins>
+
+<ins class="dd" data-d="2" data-a="6" data-au="2" data-rev="24" data-revs="15,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">The seventeenth-century</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="16" data-revs="15,16" data-touched="24" data-tip="added 6 Mar 2021 by Byziden · “Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> philosopher Thomas Hobbes </ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,16,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">extended the thought experiment by suppos</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="16" data-revs="15,16" data-touched="24" data-tip="added 6 Mar 2021 by Byziden · “Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">ing </ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,16,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">t</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="16" data-revs="15,16" data-touched="24" data-tip="added 6 Mar 2021 by Byziden · “Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">hat </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">a </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">ship </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">custodian gathered up all of the decayed parts as they were disposed </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">and used them to build a second ship,  then asked which of the two</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,19,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">—</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">the custodian</ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">'</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">s or the Athenians</ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">'</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,19,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">—</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">was the &quot;original&quot; ship.
+
+Hobbes considers the two resulting ships as illustrating two definitions of &quot;Identity&quot; or sameness</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">, form and matter,</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> that are being compa</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">red to </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">the original ship</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">:</ins>
+
+<ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">the ship that maintains the same &quot;</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">f</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">orm&quot; as the original, that which persists through complete replacement of material and</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">;</ins>
+<ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">the ship made of the same &quot;</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">m</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">atter&quot;, that which stops being 100</ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> percent</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> the same ship when the first part is replaced.
+
+Proposed resolutions
+The Ship of Theseus paradox can be thought of as an example of a puzzle of material constitution</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">—</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">that is, a problem with determining the relationship betwe</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">en an</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> object and the material </ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">of which</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> it is made.
+
+Constitution is not identity
+According to the Stanford Encyclopedia of Philosophy, the most popular solution is to accept the</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> con</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">clusion that the material </ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">out of which</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> the ship is made is not the same object as the ship, but that the two objects simply occupy the same space at the same time.
+
+Temporal parts
+Another common theory</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,19,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">,</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> put forth by </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">twentieth-century American philosopher </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">David Lewis, is to divide up all objects i</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">nt</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">o</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> three-dimensional time-slices </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">which are temporally distinct</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,19,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">. This</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> avoids the issue that the two different ships exist in the same space at one time and a different space at another </ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">time</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> by considering the objects to be distinct from each other at all points in time.
+
+Cognitive science
+According to other scientists</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">, the </ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="16" data-revs="15,16" data-touched="24" data-tip="added 6 Mar 2021 by Byziden · “Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">thought puzzle</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> arises because of extreme externalism: the assumption that what is true in our minds </ins><ins class="dd" data-d="2" data-a="6" data-au="4" data-rev="22" data-revs="15,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">also hold</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">s true in the world.</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> Noam</ins> <ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="18" data-revs="15,18" data-touched="24" data-tip="added 9 Aug 2022 by Hairy Dude · “→Cognitive science:capitalisation”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">Chomsky says that t</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">his is not an unassailable assumption, from the perspective of the natural sciences, because human intuition is often mistaken. Cognitive science would treat this </ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="16" data-revs="15,16" data-touched="24" data-tip="added 6 Mar 2021 by Byziden · “Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">thought puzzle</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> as the subject of a</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">n</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> investigation</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> of</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> the human </ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">m</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">in</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">d</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">. Studying this human confusion can reveal much about the brain's operation, but little about the nature of the human-independent external world.</ins>
+
+<ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">Following on from this observation, a significant strand in cognitive science would consider </ins><ins class="dd" data-d="2" data-a="6" data-au="4" data-rev="22" data-revs="15,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">the s</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">hip </ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">not as a thing, nor even a collection of objectively existing thing</ins> <ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">parts, but rather as an organisational structure that has perceptual continuity.</ins>
+
+<ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">Deflationism
+According to the Stanford Encyclopedia</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="15" data-revs="15" data-touched="24" data-tip="added 23 Jun 2020 by CrunchyVersusTheRabbit · “→Thought experiment:”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1"> of </ins><ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">P</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">hi</ins><ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">losophy</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">, </ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,17,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">t</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">he </ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,17,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">d</ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,17,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">eflationist view is that the facts of the thought experiment are undisputed</ins><ins class="dd" data-d="4" data-a="6" data-au="4" data-rev="22" data-revs="15,17,20,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">;</ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,17,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> the only dispute is over the meaning of </ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">th</ins><ins class="dd" data-d="3" data-a="6" data-au="6" data-rev="20" data-revs="15,17,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">e</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> t</ins><ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">erm &quot;ship&quot; and </ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,20,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">is </ins><ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">thus merely verbal. American philosopher Hilary Putnam asserts </ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,20,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">that &quot;t</ins><ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">he logical primitives themselves, and in particular the notions of object and existence, have a multitude of different uses rather than one absolute </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,20,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">'</ins><ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">meaning</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,20,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">'</ins><ins class="dd" data-d="4" data-a="6" data-au="4" data-rev="22" data-revs="15,20,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">.</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,20,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">&quot;</ins><ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> This thesis—that there are many meanings for the existential quantifier that are equally natural and equally adequate for describing all the facts—is often referred to as </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,20,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">&quot;</ins><ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="15,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">the doctrine of quantifier variance</ins><ins class="dd" data-d="2" data-a="6" data-au="4" data-rev="22" data-revs="15,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">.</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">&quot;
+
+Continued identity theory
+This solution (proposed by Kate, Ernest et al.) sees an object as staying the same as long as it continuously </ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">and metaphysically </ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">exists under the same identity</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> without being</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> fully transformed at </ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">on</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">e time. For instance, a house</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> that has its</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> front wall destroyed and replaced at </ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,21,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">Y</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">ear </ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,21,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">One</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">, the ceiling replaced at </ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,21,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">Y</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">ear </ins><ins class="dd" data-d="3" data-a="6" data-au="7" data-rev="23" data-revs="15,21,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">Two</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">, </ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">and so on,</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> until every part of the house has been replaced will still be </ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">understood as</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> the same</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> house</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">. However, if every wall, the floor</ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">,</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> and the </ins><ins class="dd" data-d="3" data-a="6" data-au="4" data-rev="22" data-revs="15,21,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">roof</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> are destroyed and replaced at the same time, it will be </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,21,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">regarded</ins><ins class="dd" data-d="2" data-a="6" data-au="3" data-rev="21" data-revs="15,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> as a new house.</ins>
+
+<ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,17,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">Alternative forms
+In </ins><ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,17,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">Western countries</ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,17,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">, several independent tales and stories feat</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">ure </ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,17,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">knives </ins><ins class="dd" data-d="4" data-a="6" data-au="4" data-rev="22" data-revs="15,17,19,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">of which</ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,17,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> the blades and handles </ins><ins class="dd" data-d="4" data-a="6" data-au="4" data-rev="22" data-revs="15,17,19,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">had been </ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,17,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">replaced several times but are still used and represent the same knife. France has Jeannot's knife</ins><ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,17,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">;</ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,17,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> Spain uses Jeannot's knife as a proverb, though it is referred to simply as &quot;the family knife&quot;</ins><ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,17,19,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">;</ins><ins class="dd" data-d="3" data-a="6" data-au="1" data-rev="19" data-revs="15,17,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> and Hungary has &quot;Lajos Kossuth's pocket knife&quot;. Several variants</ins><ins class="dd" data-d="2" data-a="6" data-au="5" data-rev="17" data-revs="15,17" data-touched="24" data-tip="added 29 Aug 2021 by ClueBot NG · “Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> or </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">alternative statements of the underlying problem are known, including the grandfather's axe, where an old </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">axe </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="19" data-revs="15,19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">has had both its head and its handle replaced, leaving no original components.</ins><ins class="dd" data-d="2" data-a="6" data-au="2" data-rev="24" data-revs="15,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> In an American version, a museum claims to own George Washington's axe, but the axe's handle has been replaced three times and its head twice. In Brita</ins><ins class="dd" data-d="2" data-a="6" data-au="4" data-rev="22" data-revs="15,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">in</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,22,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">,</ins><ins class="dd" data-d="2" data-a="6" data-au="4" data-rev="22" data-revs="15,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2"> the </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,22,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">term Trigger's broom is sometimes used, in reference to a line from the sitcom Only Fools and Horses in which road sweeper Trigger says that he has used the same broom for 20 years, with it only needing 17 new heads and 14 new handles in that time</ins><ins class="dd" data-d="2" data-a="6" data-au="4" data-rev="22" data-revs="15,22" data-touched="24" data-tip="added 12 Oct 2024 by PEPSI697 · “Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">.
+
+The French critic and essayist Roland Barthes refers at least twice to a ship that is entirely rebuilt, in the preface to his Essais Critiques (1971) and later in his Roland Barthes par Roland Barthes (1975); in the latter, the persistence of the form of the ship is seen as a key structuralist principle. He calls this ship the Argo, on which Theseus was said to have sailed with Jason; he may have confused the Argo (referred to in passing in Plutarch's Theseus at 19.4) with the ship that sailed from Crete (Theseus, 23.1)</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">.</ins>
+
+<ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,19,21,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">The ancient Buddhist text Da zhidu lun contains a similar philosophical puzzle: a story of a traveller who encountered two demons in the night. As one demon ripped off all parts of the traveler's body one by one, the other demon replaced them with those of a corpse, and the traveller was confused about who he was.
+
+Examples
+The wooden-hulled frigate USS Constitution is referenced by the museum's official website as an example of the paradox, with it being thought that as little as ten to twenty pe</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">rce</ins><ins class="dd" data-d="4" data-a="6" data-au="2" data-rev="24" data-revs="15,19,21,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×4">nt</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="21" data-revs="15,19,21" data-touched="24" data-tip="added 4 Mar 2024 by 50.53.2.195 · “Fixing broken link for thought experiment at the top”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3"> of the </ins><ins class="dd" data-d="2" data-a="6" data-au="2" data-rev="24" data-revs="15,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">1797 ship is original. Charles Joseph Bonaparte wrote in a 1905 Navy report that in his view it was &quot;not the vessel with which Hull [had captured] Guerriere.&quot; The Antique and Classic Boat Society define a preserved boat as &quot;containing at least 60% of their original deck and topsides material&quot;, but in the case of the Constitution they conclud</ins><ins class="dd" data-d="2" data-a="6" data-au="7" data-rev="23" data-revs="15,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">e </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="24" data-revs="15,23,24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×3">t</ins><ins class="dd" data-d="2" data-a="6" data-au="7" data-rev="23" data-revs="15,23" data-touched="24" data-tip="added 30 Sept 2025 by Ohnoitsjamie · “Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">ha</ins><ins class="dd" data-d="1" data-a="6" data-au="2" data-rev="24" data-revs="24" data-touched="24" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">t it &quot;has essentially none of its original wood but we believe no one would consider it a replica.  It is Old Ironsides.&quot;
+
+In Japan, the Ise Grand Shrine is rebuilt every twenty years with entirely &quot;new wood&quot;. The continuity over the centuries is considered spiritual and comes from the source of the wood, which is harvested from an adjoining forest that is considered sacred.
+
+See also</ins>
+<ins class="dd" data-d="2" data-a="6" data-au="6" data-rev="20" data-revs="19,20" data-touched="24" data-tip="added 13 Dec 2023 by Masterhatch · “Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×2">Citations
+General and cited r</ins><ins class="dd" data-d="1" data-a="6" data-au="1" data-rev="19" data-revs="19" data-touched="24" data-tip="added 17 Feb 2023 by 2600:1702:750:17A0:1827:242E:DD78:13ED · “Added content”
+last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+edited ×1">eferences
+Further reading
+External links
+S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Theseus&quot; from the University of Washington</ins></article>
+  <aside class="ledger">
+    <h2>Revision ledger · oldest first</h2>
+    <p class="hint">Hover a revision to spotlight what it changed. Dates link to the revision on Wikipedia.</p>
+    <ol class="commits" id="commits">
+<li class="commit" data-rev="0" tabindex="0">
+  <span class="dot m0" title="Oldest sampled revision — everything starts unhighlighted here"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1154003">15 Jul 2003</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="Oldest sampled revision — everything starts unhighlighted here">131.183.73.174 · baseline · 698 chars</span>
+  </span>
+</li>
+<li class="commit" data-rev="1" tabindex="0">
+  <span class="dot m3" title="8,913 chars inserted, 691 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=37688509">1 Feb 2006</a> <span class="subject" title="→Examples:">→Examples:</span></span>
+    <span class="c-meta" title="8,913 chars inserted, 691 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">66.207.110.2 · +8,913 −691 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="2" tabindex="0">
+  <span class="dot m4" title="5,300 chars inserted, 8,844 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=109143604">18 Feb 2007</a> <span class="subject" title="→Other examples: Claim backed by citation">→Other examples: Claim backed by citation</span></span>
+    <span class="c-meta" title="5,300 chars inserted, 8,844 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">GregorB · +5,300 −8,844 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="3" tabindex="0">
+  <span class="dot m4" title="13,994 chars inserted, 4,096 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=172102147">17 Nov 2007</a> <span class="subject" title="→Aristotle's causes: partial rv (typo)">→Aristotle's causes: partial rv (typo)</span></span>
+    <span class="c-meta" title="13,994 chars inserted, 4,096 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Noe · +13,994 −4,096 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="4" tabindex="0">
+  <span class="dot m3" title="3,564 chars inserted, 5,934 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=245806013">17 Oct 2008</a> <span class="subject" title="→Locke's socks:">→Locke's socks:</span></span>
+    <span class="c-meta" title="3,564 chars inserted, 5,934 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">76.90.12.218 · +3,564 −5,934 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="5" tabindex="0">
+  <span class="dot m2" title="3,974 chars inserted, 1,027 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=317892489">4 Oct 2009</a> <span class="subject" title="comma inside close quotes">comma inside close quotes</span></span>
+    <span class="c-meta" title="3,974 chars inserted, 1,027 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Anomalocaris · +3,974 −1,027 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="6" tabindex="0">
+  <span class="dot m3" title="4,878 chars inserted, 2,816 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=381436694">28 Aug 2010</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="4,878 chars inserted, 2,816 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">71.250.25.224 · +4,878 −2,816 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="7" tabindex="0">
+  <span class="dot m5" title="18,184 chars inserted, 17,706 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=450565659">15 Sept 2011</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="18,184 chars inserted, 17,706 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">24.193.254.125 · +18,184 −17,706 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="8" tabindex="0">
+  <span class="dot m4" title="12,434 chars inserted, 4,291 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=506306003">7 Aug 2012</a> <span class="subject" title="posses possess">posses possess</span></span>
+    <span class="c-meta" title="12,434 chars inserted, 4,291 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">WereSpielChequers · +12,434 −4,291 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="9" tabindex="0">
+  <span class="dot m4" title="3,299 chars inserted, 16,155 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=553203123">2 May 2013</a> <span class="subject" title="example farm - see talk">example farm - see talk</span></span>
+    <span class="c-meta" title="3,299 chars inserted, 16,155 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">SummerPhD · +3,299 −16,155 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="10" tabindex="0">
+  <span class="dot m3" title="1,705 chars inserted, 6,604 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=586310568">16 Dec 2013</a> <span class="subject" title="rv &quot;pockmarking&quot; tagging indiscriminately to every paragraph in a section">rv &quot;pockmarking&quot; tagging indiscriminately to every paragraph in a section</span></span>
+    <span class="c-meta" title="1,705 chars inserted, 6,604 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">AnonMoos · +1,705 −6,604 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="11" tabindex="0">
+  <span class="dot m3" title="4,360 chars inserted, 2,509 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=672376088">21 Jul 2015</a> <span class="subject" title="WP:CHECKWIKI error fix for #93. External link with double http:// Do general fixes if a problem exists. -, replaced: http://http:// → http:// using AWB">WP:CHECKWIKI error fix for #93. External link with double http:// Do general fixes if a problem exists. -, replaced: http://http:// → http:// using AWB</span></span>
+    <span class="c-meta" title="4,360 chars inserted, 2,509 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">BG19bot · +4,360 −2,509 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="12" tabindex="0">
+  <span class="dot m2" title="1,337 chars inserted, 3,053 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=729438746">12 Jul 2016</a> <span class="subject" title="→Modern era: less is more...">→Modern era: less is more...</span></span>
+    <span class="c-meta" title="1,337 chars inserted, 3,053 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">192.69.183.103 · +1,337 −3,053 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="13" tabindex="0">
+  <span class="dot m2" title="2,673 chars inserted, 2,173 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=820928878">17 Jan 2018</a> <span class="subject" title="Added missing hyphen">Added missing hyphen</span></span>
+    <span class="c-meta" title="2,673 chars inserted, 2,173 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Segorian V · +2,673 −2,173 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="14" tabindex="0">
+  <span class="dot m4" title="10,860 chars inserted, 9,364 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=873720454">14 Dec 2018</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="10,860 chars inserted, 9,364 deleted vs the previous sampled revision">146.115.18.74 · +10,860 −9,364</span>
+  </span>
+</li>
+<li class="commit" data-rev="15" tabindex="0">
+  <span class="dot m4" title="7,957 chars inserted, 10,807 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=964096949">23 Jun 2020</a> <span class="subject" title="→Thought experiment:">→Thought experiment:</span></span>
+    <span class="c-meta" title="7,957 chars inserted, 10,807 deleted vs the previous sampled revision"><i class="au-dot" data-au="0"></i>CrunchyVersusTheRabbit · +7,957 −10,807</span>
+  </span>
+</li>
+<li class="commit" data-rev="16" tabindex="0">
+  <span class="dot m2" title="1,873 chars inserted, 2,907 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1010679125">6 Mar 2021</a> <span class="subject" title="Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.">Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.</span></span>
+    <span class="c-meta" title="1,873 chars inserted, 2,907 deleted vs the previous sampled revision">Byziden · +1,873 −2,907</span>
+  </span>
+</li>
+<li class="commit" data-rev="17" tabindex="0">
+  <span class="dot m2" title="1,933 chars inserted, 1,253 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1041286844">29 Aug 2021</a> <span class="subject" title="Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)">Reverting possible vandalism by 83.83.111.153 to version by 204.237.228.83. Report False Positive? Thanks, ClueBot NG. (4029597) (Bot)</span></span>
+    <span class="c-meta" title="1,933 chars inserted, 1,253 deleted vs the previous sampled revision"><i class="au-dot" data-au="5"></i>ClueBot NG · +1,933 −1,253</span>
+  </span>
+</li>
+<li class="commit" data-rev="18" tabindex="0">
+  <span class="dot m2" title="1,292 chars inserted, 2,774 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1103453511">9 Aug 2022</a> <span class="subject" title="→Cognitive science:capitalisation">→Cognitive science:capitalisation</span></span>
+    <span class="c-meta" title="1,292 chars inserted, 2,774 deleted vs the previous sampled revision">Hairy Dude · +1,292 −2,774</span>
+  </span>
+</li>
+<li class="commit" data-rev="19" tabindex="0">
+  <span class="dot m3" title="4,901 chars inserted, 4,753 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1139822208">17 Feb 2023</a> <span class="subject" title="Added content">Added content</span></span>
+    <span class="c-meta" title="4,901 chars inserted, 4,753 deleted vs the previous sampled revision"><i class="au-dot" data-au="1"></i>2600:1702:750:17A0:1827:242E:DD78:13ED · +4,901 −4,753</span>
+  </span>
+</li>
+<li class="commit" data-rev="20" tabindex="0">
+  <span class="dot m2" title="1,313 chars inserted, 613 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1189629201">13 Dec 2023</a> <span class="subject" title="Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant">Undid revision 1189617198 by Ivyrabbit (talk) funny, but not relevant</span></span>
+    <span class="c-meta" title="1,313 chars inserted, 613 deleted vs the previous sampled revision"><i class="au-dot" data-au="6"></i>Masterhatch · +1,313 −613</span>
+  </span>
+</li>
+<li class="commit" data-rev="21" tabindex="0">
+  <span class="dot m2" title="2,424 chars inserted, 541 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1211727705">4 Mar 2024</a> <span class="subject" title="Fixing broken link for thought experiment at the top">Fixing broken link for thought experiment at the top</span></span>
+    <span class="c-meta" title="2,424 chars inserted, 541 deleted vs the previous sampled revision"><i class="au-dot" data-au="3"></i>50.53.2.195 · +2,424 −541</span>
+  </span>
+</li>
+<li class="commit" data-rev="22" tabindex="0">
+  <span class="dot m2" title="1,419 chars inserted, 2,845 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1250860829">12 Oct 2024</a> <span class="subject" title="Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit">Reverted 1 edit by 81.86.245.111 (talk): Non constructive edit</span></span>
+    <span class="c-meta" title="1,419 chars inserted, 2,845 deleted vs the previous sampled revision"><i class="au-dot" data-au="4"></i>PEPSI697 · +1,419 −2,845</span>
+  </span>
+</li>
+<li class="commit" data-rev="23" tabindex="0">
+  <span class="dot m1" title="581 chars inserted, 630 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1314339743">30 Sept 2025</a> <span class="subject" title="Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt">Reverted edit by 202.165.207.226 (talk) to last version by ManlyMatt</span></span>
+    <span class="c-meta" title="581 chars inserted, 630 deleted vs the previous sampled revision"><i class="au-dot" data-au="7"></i>Ohnoitsjamie · +581 −630</span>
+  </span>
+</li>
+<li class="commit" data-rev="24" tabindex="0">
+  <span class="dot m2" title="1,987 chars inserted, 1,246 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1362457739">4 Jul 2026</a> <span class="subject" title="Interceptor: Reverting non-constructive edits by ~2026-38064-92">Interceptor: Reverting non-constructive edits by ~2026-38064-92</span></span>
+    <span class="c-meta" title="1,987 chars inserted, 1,246 deleted vs the previous sampled revision"><i class="au-dot" data-au="2"></i>VanFinda · +1,987 −1,246</span>
+  </span>
+</li>
+    </ol>
+  </aside>
+</main>
+<footer class="report">
+  Generated by <code>deep-diffs-wiki</code> from the live MediaWiki API. Repeatedly edited
+  regions glow hotter — a heatmap of cumulative editorial activity; the Authors lens tints
+  each region by who introduced its wording. Technique from Ross Shannon, Aaron Quigley
+  &amp; Paddy Nixon, <a href="https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf">&ldquo;Deep
+  Diffs: Visually Exploring the History of a Document&rdquo;</a> (AVI&nbsp;2010) — Wikipedia
+  edit histories were the paper&rsquo;s original motivating corpus.
+</footer>
+</div>
+<div id="tip" role="tooltip"></div>
+<script>
+(function () {
+  var root = document.documentElement;
+  document.querySelectorAll('.toggle button').forEach(function (btn) {
+    btn.addEventListener('click', function () { root.dataset.mode = btn.dataset.set; });
+  });
+
+  var tip = document.getElementById('tip');
+  var doc = document.getElementById('doc');
+  doc.addEventListener('mouseover', function (e) {
+    var el = e.target.closest('ins.dd');
+    if (!el || !el.dataset.tip) return;
+    tip.textContent = el.dataset.tip;
+    tip.classList.add('show');
+  });
+  doc.addEventListener('mousemove', function (e) {
+    if (!tip.classList.contains('show')) return;
+    var x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 12);
+    var y = e.clientY + 18;
+    if (y + tip.offsetHeight > window.innerHeight - 8) y = e.clientY - tip.offsetHeight - 10;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  });
+  doc.addEventListener('mouseout', function (e) {
+    if (!e.target.closest || !e.target.closest('ins.dd')) return;
+    tip.classList.remove('show');
+  });
+
+  // Hovering a ledger row spotlights the text that revision introduced or reworked.
+  var segs = Array.prototype.slice.call(doc.querySelectorAll('ins.dd'));
+  function focusRev(rev) {
+    var any = false;
+    segs.forEach(function (s) {
+      var hit = (',' + s.dataset.revs + ',').indexOf(',' + rev + ',') !== -1 ||
+                s.dataset.touched === String(rev);
+      s.classList.toggle('hit', hit);
+      any = any || hit;
+    });
+    doc.classList.toggle('focus', any);
+  }
+  function clearFocus() {
+    segs.forEach(function (s) { s.classList.remove('hit'); });
+    doc.classList.remove('focus');
+  }
+  document.querySelectorAll('li.commit').forEach(function (row) {
+    row.addEventListener('mouseenter', function () { focusRev(row.dataset.rev); });
+    row.addEventListener('mouseleave', clearFocus);
+    row.addEventListener('focus', function () { focusRev(row.dataset.rev); });
+    row.addEventListener('blur', clearFocus);
+  });
+})();
+</script>
+</body>
+</html>

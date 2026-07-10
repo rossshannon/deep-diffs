@@ -22,6 +22,7 @@ output should not be relied upon byte-for-byte.
 - `boundary: 'word'` render option — snaps marker edges outward to word boundaries so highlights read as whole words (render-only; the markers array is never mutated).
 - `getDefaultStyles` options form with `palette` (`'green'`, `'amber'`, `'ocean'`, `'heat'`) and `darkMode` colour ramps; the legacy `getDefaultStyles(maxDepth)` call still works.
 - `deep-diffs-git` CLI — turns any file's git history into a self-contained deep-diff HTML churn report, with `--since`, `--max-revisions`, `--mode`, `--note` and `--open` options.
+- `deep-diffs-wiki` CLI — renders a live Wikipedia article's revision history (MediaWiki Action API, rate-limit friendly) as a deep-diff report, including an author-coloured lens over the top contributors — the paper's original corpus, revisited.
 - Five interactive demos (Playground, Draft Archaeology, The Living Draft, Collaboration Lens, Git Report) plus a gallery at `demos/index.html`, each a self-contained single HTML file.
 - Property-based fuzz suite (`test/property.test.js`) that verifies the marker transform against an independent character-identity reference model — 60,000+ randomised revision chains with zero invariant failures.
 - Future Directions research essay (`docs/FUTURE-DIRECTIONS.md`) mapping where deep diffs go next: editor integrations, CRDT-native markers, and provenance lenses for AI co-writing.
