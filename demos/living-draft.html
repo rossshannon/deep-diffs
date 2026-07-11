@@ -137,7 +137,7 @@ body {
   margin: 1.6rem 0 1.1rem;
 }
 .toolbar .spacer { flex: 1; }
-.tool-group { display: flex; align-items: center; gap: 0.45rem; }
+.tool-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
 .tool-label {
   font-size: 0.68rem;
   font-weight: 600;
@@ -2906,6 +2906,42 @@ function addInsertionMarkers(markers, ops, revision) {
   }
 }
 
+/**
+ * diff-match-patch diffs at the UTF-16 code-unit level, so a diff boundary
+ * (and, with a replacement, the proportional-remap-free whole-span landing
+ * point this demo uses) can end up between the two halves of a surrogate
+ * pair — e.g. two emoji that happen to share a high surrogate. Left alone,
+ * that puts heat under only one code unit of a two-unit glyph, splitting a
+ * single character's warmth in the render. Widen marker edges off intra-pair
+ * positions, mirroring src/deep-diff.js's snapStartToCodePoint/
+ * snapEndToCodePoint, so a marker never begins or ends mid-code-point.
+ */
+function isHighSurrogate(code) { return code >= 0xd800 && code <= 0xdbff; }
+function isLowSurrogate(code) { return code >= 0xdc00 && code <= 0xdfff; }
+
+function snapStartToCodePoint(text, start) {
+  if (start > 0 && start < text.length &&
+      isLowSurrogate(text.charCodeAt(start)) && isHighSurrogate(text.charCodeAt(start - 1))) {
+    return start - 1;
+  }
+  return start;
+}
+
+function snapEndToCodePoint(text, end) {
+  if (end >= 0 && end < text.length - 1 &&
+      isHighSurrogate(text.charCodeAt(end)) && isLowSurrogate(text.charCodeAt(end + 1))) {
+    return end + 1;
+  }
+  return end;
+}
+
+function snapMarkersToCodePoints(text, markers) {
+  for (const m of markers) {
+    m.start = snapStartToCodePoint(text, m.start);
+    m.end = snapEndToCodePoint(text, m.end);
+  }
+}
+
 /* ============================================================
    Heat model
    Geology: every marker covering a character contributes 1
@@ -3035,6 +3071,8 @@ const S = {
   markers: [],              // live Marker[] positioned on the latest snapshot
   keystrokes: 0,            // since last commit
   pauseTimer: 0,
+  pauseArmedAt: 0,          // performance.now() when pauseTimer was (re)scheduled
+  pauseDurationMs: 0,       // wall-clock ms pauseTimer was scheduled for (0 = not armed)
   charsTyped: 0,            // every character ever inserted (churn numerator)
   prevText: ''              // editor text at the previous input event
 };
@@ -3094,6 +3132,7 @@ function render() {
     // revision index means a region being edited right now previews the
     // full "just touched" warmth it will have once the snapshot commits.
     transformMarkers(markers, ops, S.snapshots.length);
+    snapMarkersToCodePoints(text, markers);
     provisional = new Uint8Array(text.length);
     let idx = 0;
     for (const o of ops) {
@@ -3211,6 +3250,31 @@ function effectivePause() {
   return S.mode === 'watch' ? PAUSE_MS / S.speed : PAUSE_MS;
 }
 
+/** Arm (or re-arm) the auto-commit pause timer, recording when and for how
+    long, so a live speed change mid-countdown can rescale the remaining wait
+    (see rescalePauseTimer) instead of leaving it frozen at the old speed. */
+function armPauseTimer(ms) {
+  S.pauseDurationMs = ms;
+  S.pauseArmedAt = performance.now();
+  S.pauseTimer = setTimeout(commitSnapshot, ms);
+}
+
+/** Called when the sim speed control changes. A pause countdown already in
+    flight was scheduled with a plain setTimeout at the OLD speed's duration,
+    which does not auto-rescale — without this, cranking the speed up mid-pause
+    would leave that one commit landing at the old, slower cadence. Rescale the
+    remaining wait by the speed ratio so "the idle threshold compresses with
+    speed" (per effectivePause) holds immediately, not just from the next
+    keystroke onward. */
+function rescalePauseTimer(oldSpeed) {
+  if (S.mode !== 'watch' || S.pauseDurationMs <= 0) return;
+  const elapsed = performance.now() - S.pauseArmedAt;
+  const remainingOld = Math.max(0, S.pauseDurationMs - elapsed);
+  const remainingNew = remainingOld * (oldSpeed / S.speed);
+  clearTimeout(S.pauseTimer);
+  armPauseTimer(remainingNew);
+}
+
 function handleInput() {
   const text = ta.value;
   // churn: count every inserted character, including ones later deleted
@@ -3225,7 +3289,7 @@ function handleInput() {
   if (S.keystrokes >= KEYSTROKE_BUDGET) {
     commitSnapshot();
   } else {
-    S.pauseTimer = setTimeout(commitSnapshot, effectivePause());
+    armPauseTimer(effectivePause());
   }
   render();
   updateStats(false);
@@ -3233,6 +3297,7 @@ function handleInput() {
 
 function commitSnapshot() {
   clearTimeout(S.pauseTimer);
+  S.pauseDurationMs = 0;
   S.keystrokes = 0;
   const text = ta.value;
   if (text === lastSnapshot()) return;
@@ -3244,6 +3309,7 @@ function commitSnapshot() {
   transformMarkers(S.markers, ops, rev);
   addInsertionMarkers(S.markers, ops, rev);
   S.markers = S.markers.filter(m => m.enabled);
+  snapMarkersToCodePoints(text, S.markers);
   pulseChip();
   render();
   updateStats(true);
@@ -3296,6 +3362,7 @@ function updateHotPhrase() {
    ============================================================ */
 function resetSession(initialText) {
   clearTimeout(S.pauseTimer);
+  S.pauseDurationMs = 0;
   S.snapshots = [initialText];
   S.markers = [];
   S.keystrokes = 0;
@@ -3497,7 +3564,11 @@ function segControl(el, onChange) {
 
 segControl(document.getElementById('modeSeg'), setMode);
 segControl(document.getElementById('decaySeg'), v => { S.decay = v; restyle(); updateStats(true); });
-segControl(document.getElementById('speedSeg'), v => { S.speed = +v; });
+segControl(document.getElementById('speedSeg'), v => {
+  const oldSpeed = S.speed;
+  S.speed = +v;
+  rescalePauseTimer(oldSpeed);
+});
 
 function setMode(mode) {
   if (mode === S.mode) return;

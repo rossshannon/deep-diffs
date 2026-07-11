@@ -99,3 +99,13 @@ code, byte for byte in behavior.
   replacement there may genuinely be new content, and the default
   kill-and-restart reading is the more conservative signal. The default also
   guarantees byte-identical output with prior releases.
+
+## Prior art in the demo
+
+`demos/living-draft.html` ships its own earlier replacement-aware
+variant that remaps every intersecting marker onto the *whole* inserted
+span rather than proportionally. Review confirmed this is a benign
+simplification (no bounds or depth-loss defects), but markers that tiled
+a deleted span collapse onto the same remapped range instead of
+preserving the tiling — the library's proportional rule is strictly more
+faithful, and the demo is a candidate to adopt it.
