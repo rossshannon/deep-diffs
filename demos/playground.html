@@ -2988,6 +2988,39 @@ function addInsertionMarkers(markers, diffs, revision) {
   }
 }
 
+/* diff-match-patch diffs at the UTF-16 code-unit level, so a diff boundary
+   can land between the halves of a surrogate pair (e.g. two emoji sharing a
+   high surrogate — 🙂 vs 🙁 differ only in their low surrogate, so dmp's
+   common-prefix trim reports the high surrogate as unchanged and only the
+   low surrogate as the edit). Widen marker edges off intra-pair positions so
+   a marker never begins or ends mid-code-point, which would otherwise slice
+   a surrogate pair across a tag boundary and render lone, unpaired
+   surrogates. Ported from src/deep-diff.js. */
+function isHighSurrogate(code) { return code >= 0xd800 && code <= 0xdbff; }
+function isLowSurrogate(code) { return code >= 0xdc00 && code <= 0xdfff; }
+
+function snapStartToCodePoint(text, start) {
+  if (
+    start > 0 && start < text.length &&
+    isLowSurrogate(text.charCodeAt(start)) &&
+    isHighSurrogate(text.charCodeAt(start - 1))
+  ) {
+    return start - 1;
+  }
+  return start;
+}
+
+function snapEndToCodePoint(text, end) {
+  if (
+    end >= 0 && end < text.length - 1 &&
+    isHighSurrogate(text.charCodeAt(end)) &&
+    isLowSurrogate(text.charCodeAt(end + 1))
+  ) {
+    return end + 1;
+  }
+  return end;
+}
+
 /* Chain diffs across all revisions, snapshotting marker state after each
    step. snapshots[k-1] = deep diff of revisions 1..k. */
 function computeTimeline(revTexts) {
@@ -3010,10 +3043,20 @@ function computeTimeline(revTexts) {
     addInsertionMarkers(markers, diffs, rev);
     markers = markers.filter(function (m) { return m.enabled; });
 
+    /* Snap this snapshot's marker copies to code-point boundaries against
+       texts[i] (this revision's text). The live `markers` array itself is
+       left untouched — it stays in raw code-unit coordinates for the next
+       revision's transformMarkers pass, exactly as the transform math
+       expects; only the rendered-facing snapshot needs whole-code-point
+       edges. */
     snapshots.push({
       text: texts[i],
       markers: markers.map(function (m) {
-        return { start: m.start, end: m.end, revision: m.revision, lastTouched: m.lastTouched };
+        return {
+          start: snapStartToCodePoint(texts[i], m.start),
+          end: snapEndToCodePoint(texts[i], m.end),
+          revision: m.revision, lastTouched: m.lastTouched
+        };
       })
     });
   }
