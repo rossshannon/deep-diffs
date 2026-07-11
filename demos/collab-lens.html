@@ -323,7 +323,7 @@
     repeatedly reworked passages accumulate visible heat. This demo adds <em>who</em>:
     every edit carries its author, fusing depth-of-editing with the author-coloured
     view pioneered by IBM History&nbsp;Flow.</p>
-    <p class="credit">After Ross Shannon,
+    <p class="credit">After Ross Shannon, Aaron Quigley &amp; Paddy Nixon’s
       <a href="https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf">“Deep Diffs: Visually Exploring the History of a Document”</a>
       (AVI 2010) · author colouring with a nod to
       <a href="https://alumni.media.mit.edu/~fviegas/projects/historyflow/">IBM History Flow</a> (Viégas &amp; Wattenberg)</p>
@@ -3076,6 +3076,13 @@ module.exports['DIFF_EQUAL'] = DIFF_EQUAL;
     if (chip) docEl.dataset.hl = chip.dataset.author;
   });
   chipsEl.addEventListener('focusout', () => { delete docEl.dataset.hl; });
+  /* safety net: if the pointer leaves the whole window while a chip is
+     hovered (no mouseout ever reaches the chip), don't leave the doc dimmed —
+     mirrors the tooltip's own document-level mouseleave guard below. */
+  document.addEventListener('mouseleave', () => {
+    delete docEl.dataset.hl;
+    document.querySelectorAll('.chip.active').forEach(c => c.classList.remove('active'));
+  });
 
   /* theme toggle — explicit choice wins over prefers-color-scheme */
   $('theme-btn').addEventListener('click', () => {
