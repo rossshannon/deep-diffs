@@ -506,7 +506,7 @@ footer.colophon p + p { margin-top: 0.4rem; }
   .thread-card { width: calc(100% - 0.5rem); }
 }
 @media (prefers-reduced-motion: reduce) {
-  body, .sent, .chip, .btn { transition: none !important; }
+  body, .sent, .chip, .btn, .doc, .rail-card { transition: none !important; }
 }
 </style>
 </head>
@@ -3047,6 +3047,9 @@ var PVP = (function () {
    * biography (versions + steps).
    */
   function analyze(revTexts) {
+    if (!revTexts.length) {
+      return { threads: [], final: [], counts: { settled: 0, polished: 0, pivoted: 0, contested: 0 }, revCount: 0 };
+    }
     var revs = revTexts.map(function (t) {
       return splitSentences(t).map(function (s) {
         s.words = contentWords(s.text);
