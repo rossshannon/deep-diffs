@@ -22,6 +22,11 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..');
 
+// Collected by onwarn below; checked right after bundle.generate() so a
+// missing prosemirror-* package fails the build instead of silently
+// producing a bundle that references an undefined global at runtime.
+const unresolvedImports = [];
+
 /** Rollup config for the demo bundle (kept here, next to the sources). */
 export const rollupConfig = {
   input: join(here, 'demo', 'main.js'),
@@ -30,6 +35,10 @@ export const rollupConfig = {
     // The bundle is an IIFE for inlining; circular deps inside prosemirror
     // packages are expected and harmless.
     if (warning.code === 'CIRCULAR_DEPENDENCY') return;
+    if (warning.code === 'UNRESOLVED_IMPORT') {
+      unresolvedImports.push(warning.source ?? warning.exporter ?? String(warning.id));
+      return;
+    }
     warn(warning);
   }
 };
@@ -47,6 +56,21 @@ const outputConfig = {
 };
 
 const bundle = await rollup(rollupConfig);
+
+// Fail loudly instead of silently emitting a bundle that references an
+// undefined global (rollup's default behaviour is to treat an unresolvable
+// import as "external" and warn, not error).
+if (unresolvedImports.length > 0) {
+  await bundle.close();
+  const names = [...new Set(unresolvedImports)].sort();
+  throw new Error(
+    `Cannot resolve the following import(s), so no demo was written:\n` +
+    names.map((n) => `  - ${n}`).join('\n') +
+    `\n\nInstall the missing package(s), e.g.:\n` +
+    `  npm install --no-save ${names.join(' ')}`
+  );
+}
+
 const { output } = await bundle.generate(outputConfig);
 await bundle.close();
 

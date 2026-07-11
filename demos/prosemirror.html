@@ -440,9 +440,10 @@ footer.colophon a { color: inherit; }
         <code>tr.mapping</code> &mdash; ProseMirror&rsquo;s built-in operational transform, the
         very thing <code>transformMarkers</code> hand-rolls in the core library &mdash; then the
         <code>DecorationSet</code> is rebuilt so nesting depth stays true to the overlaps.</p>
-        <p>Overlapping <code>Decoration.inline</code> ranges render as nested spans, so a
-        thrice-reworked phrase sits three decorations deep: the same nested-intensity
-        heatmap as the library&rsquo;s <code>&lt;ins&gt;</code> output, live in a rich-text editor.</p>
+        <p>Overlapping markers are flattened into <code>Decoration.inline</code> segments that
+        carry their stacking depth (<code>data-depth</code>, class <code>dd-d3</code>&hellip;), so a
+        thrice-reworked phrase sits three markers deep: the same nested-intensity heatmap as the
+        library&rsquo;s <code>&lt;ins&gt;</code> output, live in a rich-text editor.</p>
       </div>
 
       <div class="rail-card rail-note">
@@ -14831,8 +14832,18 @@ footer.colophon a { color: inherit; }
    * (PM positions, `to` exclusive — Decoration.inline coordinates), maps it
    * through `tr.mapping` on every transaction — the same StepMaps
    * DecorationSet.map would use — and rebuilds the DecorationSet from it.
-   * Overlapping inline decorations render as nested <span>s in the view, so
-   * the library's `.deep-diff .deep-diff` depth CSS applies unchanged.
+   *
+   * A rendering note: prosemirror-view FLATTENS overlapping inline
+   * decorations — a text run covered by several of them gets one <span> with
+   * merged, deduplicated classes, not nested spans — so the library's
+   * `.deep-diff .deep-diff` descendant-selector trick cannot express depth
+   * here. Instead the marker list (which preserves the full overlap
+   * structure) is flattened into non-overlapping segments at render time,
+   * and every segment carries its stacking depth explicitly: class
+   * `dd-d{depth}` plus `data-depth` (with data-revision / data-last-touched
+   * as the maxima over the markers stacked on that segment) — the same
+   * nesting-depth semantics as the library's renderNested, precomputed
+   * because the DOM can't be asked to count ancestors.
    *
    * ── Snapshot model ───────────────────────────────────────────────────────
    * A "revision" commits when the doc has changed and the user pauses for
@@ -14986,60 +14997,86 @@ footer.colophon a { color: inherit; }
    * Decorations
    * ──────────────────────────────────────────────────────────────────────── */
 
-  /**
-   * Nesting depth of marker `mi` within `markers`: how many markers (itself
-   * included) contain its span. Identical spans tie-break by (revision, index)
-   * so exact re-edits still stack — mirroring the library's renderNested,
-   * where older markers wrap newer ones.
-   */
-  function markerDepth(markers, mi) {
-    const m = markers[mi];
-    let depth = 0;
-    for (let i = 0; i < markers.length; i++) {
-      const o = markers[i];
-      if (o.from > m.from || o.to < m.to) continue;
-      if (o.from === m.from && o.to === m.to) {
-        if (o.revision < m.revision ||
-            (o.revision === m.revision && i <= mi)) depth++;
-      } else {
-        depth++;
-      }
-    }
-    return depth;
-  }
-
   /** Embers temperature for a marker: e^(−age/τ), age in snapshots. */
   function emberHeat(marker, revision, decayTau) {
     const age = Math.max(0, revision - marker.lastTouched);
     return Math.exp(-age / decayTau);
   }
 
+  /**
+   * Flatten the overlapping marker list into non-overlapping segments (the PM
+   * cousin of the library's computeHeatSegments; half-open [from, to) ranges).
+   * `depth` is the number of markers stacked on the segment; revision and
+   * lastTouched are the maxima among them; `ember` is the composited embers
+   * opacity — each covering marker contributes a translucent wash of
+   * temperature e^(−age/τ), composited like the stacked layers it replaces
+   * (prosemirror-view flattens overlapping inline decorations, so the
+   * compounding nested spans would have provided is computed here instead).
+   *
+   * Segments with depth 0 are omitted (nothing to decorate).
+   */
+  function flattenMarkers(markers, size, { revision, decayTau }) {
+    const cuts = new Set();
+    for (const m of markers) {
+      cuts.add(Math.max(0, Math.min(m.from, size)));
+      cuts.add(Math.max(0, Math.min(m.to, size)));
+    }
+    const points = [...cuts].sort((a, b) => a - b);
+
+    const segments = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const from = points[i];
+      const to = points[i + 1];
+      let depth = 0;
+      let rev = 0;
+      let last = 0;
+      let clear = 1; // Π(1 − wash_i): what shows through the stacked washes
+      for (const m of markers) {
+        if (m.from <= from && m.to >= to && m.to > m.from) {
+          depth++;
+          rev = Math.max(rev, m.revision);
+          last = Math.max(last, m.lastTouched);
+          clear *= 1 - 0.38 * emberHeat(m, revision, decayTau);
+        }
+      }
+      if (depth > 0) {
+        segments.push({
+          from, to, depth,
+          revision: rev,
+          lastTouched: last,
+          ember: Math.min(1 - clear, 0.8) // cap so text stays readable
+        });
+      }
+    }
+    return segments;
+  }
+
   function buildDecorations(doc, s) {
     const { markers, pending, revision, heatMode } = s;
     const { className, maxDepth, decayTau } = s.options;
     const modeClass = heatMode === 'recency' ? 'dd-recency' : 'dd-depth';
+    const size = doc.content.size;
     const decos = [];
 
-    for (let i = 0; i < markers.length; i++) {
-      const m = markers[i];
-      if (m.to <= m.from) continue;
-      const depth = Math.min(markerDepth(markers, i), maxDepth);
+    for (const seg of flattenMarkers(markers, size, { revision, decayTau })) {
+      const depth = Math.min(seg.depth, maxDepth);
       const attrs = {
-        class: `${className} ${modeClass}`,
-        'data-revision': String(m.revision),
-        'data-last-touched': String(m.lastTouched),
-        'data-depth': String(depth)
+        class: `${className} ${modeClass} dd-d${depth}`,
+        'data-revision': String(seg.revision),
+        'data-last-touched': String(seg.lastTouched),
+        'data-depth': String(seg.depth)
       };
       if (heatMode === 'recency') {
-        // Per-marker temperature; overlap compounds visually because nested
-        // decoration <span>s each apply their own translucent background.
-        attrs.style = `--dd-heat:${emberHeat(m, revision, decayTau).toFixed(3)}`;
+        attrs.style = `--dd-heat:${seg.ember.toFixed(3)}`;
       }
-      decos.push(Decoration.inline(m.from, m.to, attrs));
+      decos.push(Decoration.inline(seg.from, seg.to, attrs));
     }
 
     // Uncommitted typing shows as a whisper-light provisional tint until the
-    // pause commits it into a real marker.
+    // pause commits it into a real marker. Rendered as a background-image so
+    // it layers over (rather than fights) a committed segment's
+    // background-color when prosemirror-view merges the two decorations'
+    // classes onto one span.
     for (const r of pending) {
       if (r.to > r.from) {
         decos.push(Decoration.inline(r.from, r.to, { class: `${className} dd-pending` }));
@@ -15221,44 +15258,33 @@ footer.colophon a { color: inherit; }
     const { markers, revision, heatMode } = s;
     const { maxDepth, decayTau } = s.options;
 
-    const cuts = new Set([0, size]);
-    for (const m of markers) {
-      cuts.add(Math.max(0, Math.min(m.from, size)));
-      cuts.add(Math.max(0, Math.min(m.to, size)));
-    }
-    const points = [...cuts].sort((a, b) => a - b);
+    // Presentation policy: depth mode ramps linearly to maxDepth; embers use
+    // the composited wash opacity (rescaled to fill 0..1 at its cap).
+    const heatOf = (seg) => heatMode === 'recency'
+      ? Math.min(1, seg.ember / 0.8)
+      : Math.min(seg.depth, maxDepth) / maxDepth;
 
+    const heated = flattenMarkers(markers, size, { revision, decayTau });
+
+    // Tile the whole doc: fill the gaps with depth-0 segments so the result
+    // covers [0, doc.content.size) exactly, like the library's version.
     const segments = [];
-    for (let i = 0; i < points.length - 1; i++) {
-      const from = points[i];
-      const to = points[i + 1];
-      let depth = 0;
-      let rev = 0;
-      let last = 0;
-      let ember = 0;
-      for (const m of markers) {
-        if (m.from <= from && m.to >= to) {
-          depth++;
-          rev = Math.max(rev, m.revision);
-          last = Math.max(last, m.lastTouched);
-          ember = Math.max(ember, emberHeat(m, revision, decayTau));
-        }
+    let pos = 0;
+    const pushGap = (to) => {
+      if (to > pos) {
+        segments.push({ from: pos, to, depth: 0, revision: 0, lastTouched: 0, heat: 0 });
       }
-      // Presentation policy: depth mode ramps linearly to maxDepth; embers use
-      // the hottest covering marker, gently weighted by depth so much-worked
-      // passages read warmer than one-off fresh edits.
-      const heat = depth === 0 ? 0 : heatMode === 'recency'
-        ? ember * (0.55 + 0.45 * Math.min(depth, maxDepth) / maxDepth)
-        : Math.min(depth, maxDepth) / maxDepth;
-
-      const prevSeg = segments[segments.length - 1];
-      if (prevSeg && prevSeg.depth === depth && prevSeg.revision === rev &&
-          prevSeg.lastTouched === last && prevSeg.heat === heat) {
-        prevSeg.to = to;
-      } else {
-        segments.push({ from, to, depth, revision: rev, lastTouched: last, heat });
-      }
+    };
+    for (const seg of heated) {
+      pushGap(seg.from);
+      segments.push({
+        from: seg.from, to: seg.to, depth: seg.depth,
+        revision: seg.revision, lastTouched: seg.lastTouched,
+        heat: heatOf(seg)
+      });
+      pos = seg.to;
     }
+    pushGap(size);
     return segments;
   }
 
@@ -15268,16 +15294,17 @@ footer.colophon a { color: inherit; }
 
   /**
    * Generate CSS for the plugin's decorations. A small generator rather than a
-   * re-export of the library's getDefaultStyles: bundling src/deep-diff.js
-   * would drag diff-match-patch along for CSS the plugin never diffs with, and
-   * the plugin needs two extra families (embers, provisional). The structure
-   * is the same idea, made theme-aware: nesting-depth selectors exactly like
-   * getDefaultStyles' `.deep-diff .deep-diff` ramp, but built on a single hot
-   * hue in `--dd-hot` (and `--dd-ember`) so host pages retheme it — light and
-   * dark — by setting two custom properties.
+   * re-export of the library's getDefaultStyles for two structural reasons:
+   * getDefaultStyles' `.deep-diff .deep-diff` descendant ramp assumes nested
+   * tags, which prosemirror-view's flattened decoration spans never produce
+   * (depth arrives as a `dd-d{n}` class instead), and bundling src/deep-diff.js
+   * would drag diff-match-patch along for CSS the plugin never diffs with.
+   * The idea is the same ramp, made theme-aware: intensities are mixes of a
+   * single hot hue in `--dd-hot` (embers: `--dd-ember`), so host pages retheme
+   * it — light and dark — by setting two custom properties.
    *
    * @param {Object} [options]
-   * @param {number} [options.maxDepth=6] - Deepest nesting level to style.
+   * @param {number} [options.maxDepth=6] - Deepest stacking level to style.
    * @param {string} [options.className='deep-diff'] - Base decoration class.
    * @returns {string} CSS
    */
@@ -15286,21 +15313,21 @@ footer.colophon a { color: inherit; }
     let css = '';
     css += `${base} { border-radius: 2px; transition: background-color 0.45s ease; }\n`;
 
-    // Geology ramp: each nesting level mixes more of the hot hue in. Nested
-    // decoration spans mean depth-d text matches d stacked selectors.
+    // Geology ramp: depth-d segments mix more of the hot hue in.
     const stops = [13, 24, 36, 48, 60, 72];
     for (let d = 1; d <= maxDepth; d++) {
       const pct = stops[Math.min(d, stops.length) - 1];
-      const sel = '.dd-depth' + ' .dd-depth'.repeat(d - 1);
-      css += `${sel} { background-color: color-mix(in srgb, var(--dd-hot, #2f9e44) ${pct}%, transparent); }\n`;
+      css += `.dd-depth.dd-d${d} { background-color: color-mix(in srgb, var(--dd-hot, #2f9e44) ${pct}%, transparent); }\n`;
     }
 
-    // Embers: per-marker temperature in --dd-heat (0..1); overlapping markers
-    // compound because each nested span applies its own translucent wash.
-    css += `.dd-recency { background-color: color-mix(in srgb, var(--dd-ember, var(--dd-hot, #e8590c)) calc(var(--dd-heat, 0) * 44%), transparent); }\n`;
+    // Embers: composited wash opacity in --dd-heat (0..1), computed by the
+    // plugin from every marker stacked on the segment.
+    css += `.dd-recency { background-color: color-mix(in srgb, var(--dd-ember, var(--dd-hot, #e8590c)) calc(var(--dd-heat, 0) * 100%), transparent); }\n`;
 
-    // Provisional tint for uncommitted typing.
-    css += `.dd-pending { background-color: color-mix(in srgb, var(--dd-hot, #2f9e44) 8%, transparent); }\n`;
+    // Provisional tint for uncommitted typing. background-image, not -color:
+    // it must layer over a committed segment's colour when prosemirror-view
+    // merges both decorations' classes onto one span.
+    css += `.dd-pending { background-image: linear-gradient(color-mix(in srgb, var(--dd-hot, #2f9e44) 9%, transparent), color-mix(in srgb, var(--dd-hot, #2f9e44) 9%, transparent)); }\n`;
 
     return css;
   }
