@@ -19,8 +19,9 @@
  * @license MIT
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { computeDeepDiff } from '../src/deep-diff.js';
 import DiffMatchPatch from 'diff-match-patch';
@@ -373,6 +374,85 @@ function stripFileLinks(text) {
   return out;
 }
 
+/** Tag names whose content is dropped wholesale (citations, media blocks, code). */
+const BLOCK_TAG_NAMES = ['ref', 'gallery', 'timeline', 'math', 'score', 'syntaxhighlight', 'source', 'imagemap', 'mapframe'];
+const BLOCK_TAG_ALT = BLOCK_TAG_NAMES.join('|');
+const BLOCK_TAG_SELF_CLOSE_RE = new RegExp(`<(${BLOCK_TAG_ALT})\\b[^>]*\\/>`, 'gi');
+
+/**
+ * Remove HTML comments. A hand-rolled linear scan rather than
+ * `/<!--[\s\S]*?-->/g`: that lazy pattern re-scans all the way to the end of
+ * the string for every "<!--" that never closes, which is quadratic (and a
+ * real multi-second hang at MAX_CONTENT_CHARS scale) on the stray/broken
+ * comment markers vandalism and mid-template truncation both produce.
+ * Comments never nest, so once a "<!--" has no "-->" anywhere after it,
+ * nothing later in the string can close it either — the rest is literal.
+ */
+function stripComments(text) {
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    const start = text.indexOf('<!--', i);
+    if (start === -1) { out += text.slice(i); break; }
+    const end = text.indexOf('-->', start + 4);
+    if (end === -1) { out += text.slice(i); break; }
+    out += text.slice(i, start);
+    i = end + 3;
+  }
+  return out;
+}
+
+/**
+ * Remove `<tag>...</tag>` blocks for every name in `names` (ref, gallery,
+ * ...), whose content may itself contain other tags (a template inside a
+ * `<ref>`, a caption inside a `<gallery>`). Same job as
+ * `<(names)\b[^>]*>[\s\S]*?<\/\1\s*>` but without that pattern's quadratic
+ * blow-up: a lazy `[\s\S]*?` re-scans to the end of the string for every
+ * opener that never finds its closer, and vandalism regularly leaves stray
+ * unclosed `<ref>` tags. Instead, collect every closing tag's position once
+ * (one linear pass), then walk openers left to right consuming a
+ * monotonically-advancing per-name pointer into that list — each position is
+ * visited O(1) times amortized, so the whole thing is O(n).
+ */
+function stripTagBlocks(text, names) {
+  const alt = names.join('|');
+  const openRe = new RegExp(`<(${alt})\\b[^>]*>`, 'gi');
+  const closeRe = new RegExp(`<\\/(${alt})\\s*>`, 'gi');
+
+  const closes = [];
+  for (let m; (m = closeRe.exec(text)); ) {
+    closes.push({ start: m.index, end: m.index + m[0].length, name: m[1].toLowerCase() });
+  }
+  const nextClose = new Map(names.map((n) => [n, 0]));
+
+  let out = '';
+  let pos = 0;
+  while (pos < text.length) {
+    openRe.lastIndex = pos;
+    const om = openRe.exec(text);
+    if (!om) { out += text.slice(pos); break; }
+    const name = om[1].toLowerCase();
+    const openEnd = om.index + om[0].length;
+
+    let ci = nextClose.get(name);
+    while (ci < closes.length && (closes[ci].name !== name || closes[ci].start < openEnd)) ci++;
+    nextClose.set(name, ci);
+
+    if (ci < closes.length) {
+      // Full block found: drop everything from the opener through this close.
+      out += text.slice(pos, om.index);
+      pos = closes[ci].end;
+    } else {
+      // No closer anywhere after this opener: it doesn't match (mirrors the
+      // regex failing here and retrying one character later — a *different*
+      // opener further along may still find its own closer).
+      out += text.slice(pos, om.index + 1);
+      pos = om.index + 1;
+    }
+  }
+  return out;
+}
+
 /**
  * Light wikitext-to-prose cleanup. Deliberately approximate: inline
  * templates ({{convert|...}} etc.) vanish rather than render, but the
@@ -382,9 +462,9 @@ function stripWikitext(text) {
   let t = text;
 
   // Structural blocks first (they may contain everything else).
-  t = t.replace(/<!--[\s\S]*?-->/g, '');
-  t = t.replace(/<(ref|gallery|timeline|math|score|syntaxhighlight|source|imagemap|mapframe)\b[^>]*\/>/gi, '');
-  t = t.replace(/<(ref|gallery|timeline|math|score|syntaxhighlight|source|imagemap|mapframe)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+  t = stripComments(t);
+  t = t.replace(BLOCK_TAG_SELF_CLOSE_RE, '');
+  t = stripTagBlocks(t, BLOCK_TAG_NAMES);
   t = stripBalanced(t, '{{', '}}');
   t = stripBalanced(t, '{|', '|}');
   t = stripFileLinks(t);
@@ -1016,4 +1096,47 @@ async function main() {
   }
 }
 
-main();
+// Only run the CLI when this file is executed directly (`deep-diffs-wiki ...`
+// or `node bin/deep-diffs-wiki.js ...`) — not when imported as a module (e.g.
+// by tests), which would otherwise parse process.argv and exit/fetch.
+// `npm link`/global installs invoke this file through a node_modules/.bin
+// symlink, so argv[1] is resolved with realpathSync (matching import.meta.url,
+// which the ESM loader already resolves past symlinks) rather than plain
+// path.resolve, which would leave the two mismatched and silently skip main().
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return fileURLToPath(import.meta.url) === realpathSync(process.argv[1]);
+  } catch {
+    return false;
+  }
+}
+if (isMainModule()) {
+  main();
+}
+
+// ---------------------------------------------------------------------------
+// Exports (for tests only; the CLI above is the intended entry point)
+// ---------------------------------------------------------------------------
+
+export {
+  parseArgs,
+  stripBalanced,
+  stripFileLinks,
+  stripComments,
+  stripTagBlocks,
+  stripWikitext,
+  escapeHtml,
+  fmtDate,
+  displayUser,
+  cleanSummary,
+  displayComment,
+  sampleEvenly,
+  computeChurn,
+  rankAuthors,
+  segmentize,
+  renderDocument,
+  renderLedger,
+  renderDepthLegend,
+  renderAuthorLegend,
+};
