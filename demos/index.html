@@ -235,7 +235,7 @@
 <div class="wrap">
 
   <header>
-    <p class="kicker">Demo suite &middot; Five exhibits</p>
+    <p class="kicker">Demo suite &middot; Eight exhibits</p>
     <h1>Deep Diffs — Demonstrations</h1>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">Theme: auto</button>
     <p class="lede">
@@ -369,6 +369,77 @@
           </ul>
           <p class="themes"><b>Explores</b> The technique applied to real version control — every repo already has the data.</p>
           <a class="open-link" href="git-report.html">Open the report</a>
+        </div>
+      </article>
+
+      <!-- 6 · Polish vs Pivot -->
+      <article class="card">
+        <a class="shot" href="polish-vs-pivot.html" tabindex="-1" aria-hidden="true">
+          <img class="shot-light" src="../docs/screenshots/pivot.png" alt="Polish vs Pivot, light theme: an op-ed draft with amber polish and violet pivot tints, a sentence thread card open">
+          <img class="shot-dark" src="../docs/screenshots/pivot-dark.png" alt="Polish vs Pivot, dark theme">
+        </a>
+        <div class="body">
+          <div class="card-head">
+            <span class="num">No. 6</span>
+            <h2><a href="polish-vs-pivot.html">Polish vs Pivot</a></h2>
+          </div>
+          <p class="hook">Heat says a sentence was reworked; meaning drift says whether the writer was refining the wording or changing their mind.</p>
+          <ul>
+            <li>Sentences threaded across the whole history and every changed step scored for lexical meaning drift</li>
+            <li><strong>Settled / Polished / Pivoted / Contested</strong> — two visual channels: warmth = churn, hue = polish (amber) vs pivot (violet)</li>
+            <li>Hover any sentence for its <em>biography</em> — every version it passed through, with per-step similarity badges</li>
+            <li>A churn &times; drift scatter: one dot per sentence, the &ldquo;map of the draft&rsquo;s soul&rdquo;</li>
+          </ul>
+          <p class="themes"><b>Explores</b> Semantic deep diffs — the first prototype of the FUTURE-DIRECTIONS proposal.</p>
+          <a class="open-link" href="polish-vs-pivot.html">Open the prototype</a>
+        </div>
+      </article>
+
+      <!-- 7 · ProseMirror editor -->
+      <article class="card">
+        <a class="shot" href="prosemirror.html" tabindex="-1" aria-hidden="true">
+          <img class="shot-light" src="../docs/screenshots/prosemirror.png" alt="Deep Diffs ProseMirror plugin demo, light theme: a rich-text editor with heat decorations">
+          <img class="shot-dark" src="../docs/screenshots/prosemirror-dark.png" alt="Deep Diffs ProseMirror plugin demo, dark theme">
+        </a>
+        <div class="body">
+          <div class="card-head">
+            <span class="num">No. 7</span>
+            <h2><a href="prosemirror.html">ProseMirror Editor</a></h2>
+            <span class="badge">Real integration</span>
+          </div>
+          <p class="hook">A real rich-text editor plugin — ProseMirror&rsquo;s transaction mapping performs the marker transform natively.</p>
+          <ul>
+            <li><code>deepDiffsPlugin</code> keeps live markers in plugin state and maps them through <code>tr.mapping</code> on every keystroke</li>
+            <li>Snapshots auto-commit when you pause; nested edits stack decoration depth exactly like the library</li>
+            <li>Depth and recency (Embers-decay) heat modes; <code>getHeatSegments</code> feeds minimaps</li>
+            <li>The plugin source lives in <code>integrations/prosemirror/</code>, ready to drop into a TipTap or ProseMirror app</li>
+          </ul>
+          <p class="themes"><b>Explores</b> Editor decorations — deep diffs inside the tools people actually write in.</p>
+          <a class="open-link" href="prosemirror.html">Open the editor</a>
+        </div>
+      </article>
+
+      <!-- 8 · Wiki report -->
+      <article class="card">
+        <a class="shot" href="wiki-report.html" tabindex="-1" aria-hidden="true">
+          <img class="shot-light" src="../docs/screenshots/wiki-report.png" alt="Generated Wikipedia deep-diff report, light theme: Ship of Theseus article history as heat with author colours">
+          <img class="shot-dark" src="../docs/screenshots/wiki-report-dark.png" alt="Generated Wikipedia deep-diff report, dark theme">
+        </a>
+        <div class="body">
+          <div class="card-head">
+            <span class="num">No. 8</span>
+            <h2><a href="wiki-report.html">Wiki Report</a></h2>
+            <span class="badge">Generated artifact</span>
+          </div>
+          <p class="hook">The paper&rsquo;s original corpus, revisited live: <code>npx deep-diffs-wiki "Ship of Theseus"</code> — an article that enacts its own paradox.</p>
+          <ul>
+            <li>Fetches any article&rsquo;s revision history from the MediaWiki API (rate-limit-friendly, rename- and redirect-aware)</li>
+            <li>2,150 revisions by 1,268 contributors sampled to 25 — nothing from the first fourteen survives, yet the article persists</li>
+            <li><strong>Authors lens</strong>: Okabe&ndash;Ito hues for the top contributors, opacity deepening with edit depth</li>
+            <li>Ledger rows link each revision to its Wikipedia oldid, with cleaned edit summaries</li>
+          </ul>
+          <p class="themes"><b>Explores</b> Live editorial archaeology on the world&rsquo;s most-edited documents.</p>
+          <a class="open-link" href="wiki-report.html">Open the report</a>
         </div>
       </article>
 

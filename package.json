@@ -1,6 +1,6 @@
 {
   "name": "@rossshannon/deep-diffs",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Visualise cumulative changes across multiple text revisions with intensity-based highlighting",
   "type": "module",
   "main": "dist/deep-diff.cjs",
@@ -18,6 +18,7 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "README.md",
     "LICENSE"
