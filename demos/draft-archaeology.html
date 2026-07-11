@@ -3290,6 +3290,7 @@ let cur = 0;              // Current revision index
 let playing = false;
 let playTimer = 0;
 let pendingFinalize = 0;  // Timer finalising an in-flight transition
+let summaryTimer = 0;     // Timer delaying the summary overlay after playback ends
 let completedByPlayback = false;
 
 const BASE_DWELL = 2500;  // ms per revision at 1x (plus the morph itself)
@@ -3301,6 +3302,9 @@ function goTo(idx, { animate = true } = {}) {
   if (idx === cur && doc.childNodes.length) { updateChrome(); return; }
   /* If a morph is still settling, finalise it instantly first. */
   if (pendingFinalize) { clearTimeout(pendingFinalize); pendingFinalize = 0; }
+  /* Any navigation cancels a still-pending "show the summary" timer, so it
+     can't pop up later over a state the user has already moved away from. */
+  if (summaryTimer) { clearTimeout(summaryTimer); summaryTimer = 0; }
   const from = cur;
   cur = idx;
   if (animate && from !== idx && !prefersReducedMotion()) {
@@ -3333,6 +3337,7 @@ function play() {
 function pause() {
   playing = false;
   clearTimeout(playTimer);
+  if (summaryTimer) { clearTimeout(summaryTimer); summaryTimer = 0; }
   updatePlayButton();
 }
 function scheduleNext(extra = 0) {
@@ -3345,7 +3350,7 @@ function scheduleNext(extra = 0) {
         completedByPlayback = true;
         playing = false;
         updatePlayButton();
-        setTimeout(showSummary, 1100);
+        summaryTimer = setTimeout(() => { summaryTimer = 0; showSummary(); }, 1100);
       } else {
         scheduleNext();
       }
@@ -3480,7 +3485,10 @@ function showSummary() {
   $("deep-quote").textContent = "“" + s.quote + "”";
   summaryEl.classList.add("show");
 }
-function hideSummary() { summaryEl.classList.remove("show"); }
+function hideSummary() {
+  summaryEl.classList.remove("show");
+  if (summaryTimer) { clearTimeout(summaryTimer); summaryTimer = 0; }
+}
 
 $("replay").addEventListener("click", () => { hideSummary(); goTo(0, { animate: false }); play(); });
 $("dismiss").addEventListener("click", hideSummary);
