@@ -30,7 +30,20 @@ import assert from 'node:assert';
 import { computeDeepDiff, renderWithMarkers } from '../src/deep-diff.js';
 import { buildReference, markerDepths, filterRevisions } from './reference-impl.js';
 
-const FUZZ_CHAINS = Math.max(1, parseInt(process.env.FUZZ_CHAINS || '100', 10));
+// parseInt(garbage, 10) is NaN, and Math.max(1, NaN) is NaN - a naive
+// `Math.max(1, parseInt(env || '100', 10))` would silently turn
+// `FUZZ_CHAINS=garbage` (or any non-numeric value) into NaN, which makes
+// every `for (seed = 1; seed <= FUZZ_CHAINS; seed++)` loop below execute
+// ZERO iterations. With zero iterations no assertion ever runs, so the
+// randomized suites report "ok" having verified nothing - the exact
+// "dead assertion" failure mode this suite exists to avoid in the library
+// it tests. Fall back to the default whenever parsing doesn't yield a
+// finite number; only a well-formed numeric string overrides it.
+function parseFuzzChains(raw) {
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? Math.max(1, n) : 100;
+}
+const FUZZ_CHAINS = parseFuzzChains(process.env.FUZZ_CHAINS);
 
 // ============================================================================
 // Tiny seeded PRNG (mulberry32) + helpers
@@ -189,8 +202,6 @@ function genPathological(rnd, which) {
 // Shared invariant checker
 // ============================================================================
 
-const markerKey = m => [m.start, m.end, m.revision, m.lastTouched].join(',');
-const canonicalMarkers = ms => JSON.stringify(ms.map(markerKey).sort());
 const escapeLikeSrc = s => s
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -285,16 +296,24 @@ function checkChain(revs, label) {
     result.markers.map(mk => ({ ...mk })),
     `${ctx}: markers not idempotent`);
 
-  // --- Appending an identical final revision never changes the marker SET.
-  // (Set, not array: transformMarkers re-sorts in place, so the *order* of
-  // returned markers is not stable under no-op revisions. Documented as a
-  // minor quirk in docs/known-issues.md.)
+  // --- Appending an identical final revision never changes the marker
+  // array - values OR order. (Older versions of computeDeepDiff left
+  // transformMarkers' in-place working sort leaking into the public result,
+  // making order depend on creation history rather than marker content; see
+  // docs/known-issues.md #3. It is now resorted deterministically by
+  // (start, end, revision) before being returned, so appending a no-op
+  // revision - which changes no marker's start/end/revision - must reproduce
+  // the exact same array. Verified with a 4000-chain probe across the plain,
+  // unicode, and pathological generators before tightening this from a
+  // set-equality check to full array equality.)
   const kept = filterRevisions(revs);
   if (kept.length >= 1) {
     const appended = computeDeepDiff([...kept, kept[kept.length - 1]], opts);
     assert.strictEqual(appended.text, result.text, `${ctx}: no-op revision changed text`);
-    assert.strictEqual(canonicalMarkers(appended.markers), canonicalMarkers(result.markers),
-      `${ctx}: appending an identical final revision changed the marker set`);
+    assert.deepStrictEqual(
+      appended.markers.map(mk => ({ ...mk })),
+      result.markers.map(mk => ({ ...mk })),
+      `${ctx}: appending an identical final revision changed the marker array`);
   }
 
   return { result, ref, depths };
@@ -356,6 +375,33 @@ describe(`property: randomized revision chains (FUZZ_CHAINS=${FUZZ_CHAINS})`, ()
     }
   });
 
+});
+
+// ============================================================================
+// FUZZ_CHAINS parsing (harness self-test, not a property of the library)
+// ----------------------------------------------------------------------------
+// Regression test for a real bug found while reviewing this suite:
+// `Math.max(1, parseInt(raw || '100', 10))` turns any non-numeric
+// FUZZ_CHAINS value into NaN, and `seed <= NaN` is always false, so every
+// randomized `it()` above would silently iterate zero times and report a
+// pass. parseFuzzChains() must fall back to the default instead.
+// ============================================================================
+
+describe('harness: FUZZ_CHAINS env parsing', () => {
+  it('falls back to 100 for missing/empty/non-numeric values', () => {
+    assert.strictEqual(parseFuzzChains(undefined), 100);
+    assert.strictEqual(parseFuzzChains(''), 100);
+    assert.strictEqual(parseFuzzChains('garbage'), 100);
+    assert.strictEqual(parseFuzzChains(NaN), 100);
+  });
+
+  it('honours well-formed numeric values, clamped to a minimum of 1', () => {
+    assert.strictEqual(parseFuzzChains('500'), 500);
+    assert.strictEqual(parseFuzzChains('1'), 1);
+    assert.strictEqual(parseFuzzChains('0'), 1);
+    assert.strictEqual(parseFuzzChains('-5'), 1);
+    assert.strictEqual(parseFuzzChains('12abc'), 12); // parseInt stops at the first non-digit
+  });
 });
 
 // ============================================================================
@@ -611,12 +657,19 @@ describe('known issues', () => {
     assert.strictEqual(emptiesOnly.revisionCount, 0);
   });
 
-  it('KNOWN ISSUE #3 (quirk): returned marker order is unstable under no-op revisions (docs/known-issues.md)', () => {
-    // transformMarkers sorts the markers array in place on every revision,
-    // including revisions that change nothing, so appending an identical
-    // revision reorders the returned array (values are unchanged - the
-    // randomized suite asserts set-equality above). Pin the set-stability
-    // here on a case where the order is known to flip while the bug exists.
+  it('FIXED REGRESSION #3: returned marker order is deterministic (start,end,revision) across no-op revisions (docs/known-issues.md)', () => {
+    // Originally transformMarkers sorted the markers array in place on every
+    // revision (including no-op ones), and that in-place creation-order sort
+    // leaked into the public result: appending an identical final revision
+    // reordered the returned array even though every marker's values were
+    // unchanged. Fixed during concurrent development of src/deep-diff.js
+    // (2026-07-10): computeDeepDiff now sorts finalMarkers by
+    // (start, end, revision) before returning, so the array order is a pure
+    // function of marker content, not processing history. This pins the fix
+    // with full array equality (order included) on the exact case that used
+    // to flip order while the bug was present - tightened from a
+    // canonicalMarkers set-equality check once a 4000-chain probe (plain +
+    // unicode + pathological generators) confirmed zero order mismatches.
     const revs = [
       'aaaa bbbb cccc',
       'aaaa bbbb ccccXX',   // marker late in the text, created first
@@ -624,10 +677,10 @@ describe('known issues', () => {
     ];
     const base = computeDeepDiff(revs, { timeout: 0 });
     const appended = computeDeepDiff([...revs, revs[revs.length - 1]], { timeout: 0 });
-    assert.strictEqual(canonicalMarkers(appended.markers), canonicalMarkers(base.markers),
-      'no-op revision must never change marker values');
-    // Not asserted: element order equality - it is not part of the contract
-    // and currently differs (creation order vs start-sorted order).
+    assert.deepStrictEqual(
+      appended.markers.map(mk => ({ ...mk })),
+      base.markers.map(mk => ({ ...mk })),
+      'no-op revision must never change marker values OR order');
   });
 
 });
