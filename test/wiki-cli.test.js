@@ -30,6 +30,8 @@ import {
   segmentize,
   renderDocument,
   renderLedger,
+  collapseReverts,
+  ageBucket,
 } from '../bin/deep-diffs-wiki.js';
 
 const CLI_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/deep-diffs-wiki.js');
@@ -47,6 +49,7 @@ describe('parseArgs', () => {
     assert.strictEqual(opts.out, null);
     assert.strictEqual(opts.mode, 'depth');
     assert.strictEqual(opts.stripMarkup, true);
+    assert.strictEqual(opts.keepReverts, false);
     assert.strictEqual(opts.open, false);
   });
 
@@ -67,6 +70,11 @@ describe('parseArgs', () => {
     assert.strictEqual(opts.stripMarkup, false);
   });
 
+  it('parses --keep-reverts', () => {
+    const opts = parseArgs(['Article', '--keep-reverts']);
+    assert.strictEqual(opts.keepReverts, true);
+  });
+
   it('rejects an implausible --lang via the CLI process (exit 1, no crash)', () => {
     const res = spawnSync(process.execPath, [CLI_PATH, 'Article', '--lang', 'not-a-lang-code-way-too-long'], { encoding: 'utf8' });
     assert.strictEqual(res.status, 1);
@@ -83,6 +91,7 @@ describe('parseArgs', () => {
     const res = spawnSync(process.execPath, [CLI_PATH, '--help'], { encoding: 'utf8' });
     assert.strictEqual(res.status, 0);
     assert.match(res.stdout, /Usage: deep-diffs-wiki/);
+    assert.match(res.stdout, /--keep-reverts/);
   });
 });
 
@@ -209,6 +218,168 @@ describe('sampleEvenly', () => {
 });
 
 // ============================================================================
+// collapseReverts — History Flow's collapse rule, run before sampling
+// ============================================================================
+
+describe('collapseReverts', () => {
+  it('collapses a sha1 revert cycle at the very start of the history', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: [] }, // creation
+      { revid: 2, sha1: 'B', tags: [] }, // vandalism
+      { revid: 3, sha1: 'A', tags: [] }, // revert back to A
+      { revid: 4, sha1: 'C', tags: [] }, // later legit edit
+      { revid: 5, sha1: 'D', tags: [] }, // latest
+    ];
+    const { revs: out, collapsedByCycle, droppedByTag } = collapseReverts(revs);
+    assert.deepStrictEqual(out.map((r) => r.revid), [1, 4, 5]);
+    assert.strictEqual(collapsedByCycle, 2);
+    assert.strictEqual(droppedByTag, 0);
+  });
+
+  it('collapses a sha1 revert cycle in the middle of the history', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: [] },
+      { revid: 2, sha1: 'B', tags: [] },
+      { revid: 3, sha1: 'X', tags: [] }, // vandalism
+      { revid: 4, sha1: 'B', tags: [] }, // revert back to B
+      { revid: 5, sha1: 'D', tags: [] }, // latest
+    ];
+    const { revs: out, collapsedByCycle } = collapseReverts(revs);
+    assert.deepStrictEqual(out.map((r) => r.revid), [1, 2, 5]);
+    assert.strictEqual(collapsedByCycle, 2);
+  });
+
+  it('collapses a sha1 cycle touching the very end, but always keeps the latest revision', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: [] },
+      { revid: 2, sha1: 'B', tags: [] }, // vandalism
+      { revid: 3, sha1: 'A', tags: [] }, // current text happens to match revid 1's
+    ];
+    const { revs: out, collapsedByCycle } = collapseReverts(revs);
+    // revid 2 (the vandalism) is still dropped, but revid 3 — the article's
+    // actual current text — must survive even though it duplicates revid 1's
+    // sha1; only revid 2 counts as collapsed.
+    assert.deepStrictEqual(out.map((r) => r.revid), [1, 3]);
+    assert.strictEqual(collapsedByCycle, 1);
+  });
+
+  it('handles repeated revert cycles, continuing to scan from the surviving state after each collapse', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: [] },
+      { revid: 2, sha1: 'B', tags: [] }, // vandalism 1
+      { revid: 3, sha1: 'A', tags: [] }, // revert 1
+      { revid: 4, sha1: 'C', tags: [] }, // legit edit
+      { revid: 5, sha1: 'D', tags: [] }, // vandalism 2
+      { revid: 6, sha1: 'C', tags: [] }, // revert 2 (back to revid 4's state)
+      { revid: 7, sha1: 'E', tags: [] }, // latest
+    ];
+    const { revs: out, collapsedByCycle } = collapseReverts(revs);
+    assert.deepStrictEqual(out.map((r) => r.revid), [1, 4, 7]);
+    assert.strictEqual(collapsedByCycle, 4);
+  });
+
+  it('never lets a revision with no sha1 (suppressed text) falsely match, and does not crash', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: [] },
+      { revid: 2, sha1: null, tags: [] },
+      { revid: 3, sha1: 'B', tags: [] },
+      { revid: 4, sha1: null, tags: [] },
+    ];
+    const { revs: out, collapsedByCycle, droppedByTag } = collapseReverts(revs);
+    assert.deepStrictEqual(out.map((r) => r.revid), [1, 2, 3, 4]);
+    assert.strictEqual(collapsedByCycle, 0);
+    assert.strictEqual(droppedByTag, 0);
+  });
+
+  it('drops a revision tagged mw-reverted independently of the sha1 rule', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: [] },
+      { revid: 2, sha1: 'B', tags: ['mw-reverted'] }, // not a byte-identical revert, but tagged
+      { revid: 3, sha1: 'C', tags: [] },
+    ];
+    const { revs: out, collapsedByCycle, droppedByTag } = collapseReverts(revs);
+    assert.deepStrictEqual(out.map((r) => r.revid), [1, 3]);
+    assert.strictEqual(collapsedByCycle, 0);
+    assert.strictEqual(droppedByTag, 1);
+  });
+
+  it('never drops the first or last revision via the tag rule, even if tagged mw-reverted', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: ['mw-reverted'] },
+      { revid: 2, sha1: 'B', tags: [] },
+      { revid: 3, sha1: 'C', tags: ['mw-reverted'] },
+    ];
+    const { revs: out, droppedByTag } = collapseReverts(revs);
+    assert.deepStrictEqual(out.map((r) => r.revid), [1, 2, 3]);
+    assert.strictEqual(droppedByTag, 0);
+  });
+
+  it('does not double-count a revision dropped by the sha1 rule against the tag count', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: [] },
+      { revid: 2, sha1: 'B', tags: ['mw-reverted'] }, // vandalism, also tagged
+      { revid: 3, sha1: 'A', tags: ['mw-reverted'] }, // revert, also tagged
+      { revid: 4, sha1: 'C', tags: [] },
+    ];
+    const { revs: out, collapsedByCycle, droppedByTag } = collapseReverts(revs);
+    assert.deepStrictEqual(out.map((r) => r.revid), [1, 4]);
+    assert.strictEqual(collapsedByCycle, 2);
+    assert.strictEqual(droppedByTag, 0); // already gone via the sha1 pass, not re-counted
+  });
+
+  it('--keep-reverts passthrough: leaves the timeline untouched with zero counts', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', tags: [] },
+      { revid: 2, sha1: 'B', tags: ['mw-reverted'] },
+      { revid: 3, sha1: 'A', tags: [] },
+    ];
+    const { revs: out, collapsedByCycle, droppedByTag } = collapseReverts(revs, { keepReverts: true });
+    assert.deepStrictEqual(out, revs);
+    assert.strictEqual(collapsedByCycle, 0);
+    assert.strictEqual(droppedByTag, 0);
+  });
+
+  it('is a no-op on a history with fewer than two revisions', () => {
+    const revs = [{ revid: 1, sha1: 'A', tags: [] }];
+    const { revs: out, collapsedByCycle, droppedByTag } = collapseReverts(revs);
+    assert.deepStrictEqual(out, revs);
+    assert.strictEqual(collapsedByCycle, 0);
+    assert.strictEqual(droppedByTag, 0);
+  });
+});
+
+// ============================================================================
+// ageBucket — fixed real-time buckets for the Recency lens
+// ============================================================================
+
+describe('ageBucket', () => {
+  const DAY = 86400000;
+  const now = Date.parse('2026-07-12T00:00:00Z');
+  const daysAgo = (n) => new Date(now - n * DAY).toISOString();
+
+  it('buckets a same-day edit as the hottest bucket (6)', () => {
+    assert.strictEqual(ageBucket(daysAgo(0), now), 6);
+  });
+
+  it('buckets exactly at a boundary into the newer (inclusive) side', () => {
+    assert.strictEqual(ageBucket(daysAgo(90), now), 6);
+    assert.strictEqual(ageBucket(daysAgo(91), now), 5);
+    assert.strictEqual(ageBucket(daysAgo(365), now), 5);
+    assert.strictEqual(ageBucket(daysAgo(366), now), 4);
+  });
+
+  it('buckets a multi-year-old edit as cool, regardless of how recently the article was sampled', () => {
+    assert.strictEqual(ageBucket(daysAgo(365 * 3), now), 3); // 2-5yr
+    assert.strictEqual(ageBucket(daysAgo(365 * 7), now), 2); // 5-10yr
+    assert.strictEqual(ageBucket(daysAgo(365 * 23), now), 1); // 23-year-old article, oldest bucket
+  });
+
+  it('falls back to the oldest/coolest bucket for an unparseable timestamp', () => {
+    assert.strictEqual(ageBucket('not-a-date', now), 1);
+  });
+});
+
+// ============================================================================
 // escaping / formatting / display helpers
 // ============================================================================
 
@@ -312,6 +483,31 @@ describe('marker.revision indexing end-to-end (computeDeepDiff -> renderDocument
     assert.match(html, /data-rev="1"[^>]*>brave new <\/ins>/);
     // "shiny " was introduced in revisions[2] (Alice, the latest revision).
     assert.match(html, /data-rev="2"[^>]*>shiny <\/ins>/);
+  });
+
+  it('buckets the Recency lens (data-a) by each region\'s real last-touched date, not its rank among sampled revisions', () => {
+    const { text, markers } = computeDeepDiff(texts, { skipEmpty: true });
+    const { index: authorIndex } = rankAuthors(markers, revisions);
+    // "now" far in the future relative to all three fixed 2020 timestamps:
+    // every region here is 5+ years old, so every region should land in the
+    // single oldest bucket (1) — a real calendar distinction the old
+    // index-based scheme (which always used the full 1..6 spread across
+    // whatever was sampled) could never make.
+    const farFuture = Date.parse('2032-06-01T00:00:00Z');
+    const html = renderDocument(text, markers, revisions, authorIndex, farFuture);
+    const buckets = [...html.matchAll(/data-a="(\d)"/g)].map((m) => Number(m[1]));
+    assert.ok(buckets.length > 0);
+    assert.ok(buckets.every((b) => b === 1), `expected every region to bucket as oldest (1) far in the future, got ${buckets}`);
+  });
+
+  it('buckets the Recency lens closer to "now" than to the far future — different nowMs values give different buckets', () => {
+    const { text, markers } = computeDeepDiff(texts, { skipEmpty: true });
+    const { index: authorIndex } = rankAuthors(markers, revisions);
+    // "now" a few days after the most recent (2020-03-01) revision: that
+    // region's real-world age is tiny, so it should land in the hottest bucket.
+    const shortlyAfter = Date.parse('2020-03-05T00:00:00Z');
+    const html = renderDocument(text, markers, revisions, authorIndex, shortlyAfter);
+    assert.match(html, /data-a="6"[^>]*>shiny <\/ins>/);
   });
 
   it('renderLedger indexes revisions by array position, not revid, and flags revisions with nothing surviving', () => {

@@ -44,8 +44,23 @@ Options:
   --strip-markup          Light wikitext cleanup: drop templates, refs, tables,
                           file links; keep readable prose. Approximate. (default: on)
   --no-strip-markup       Diff the raw wikitext instead
+  --keep-reverts          Don't collapse revert cycles or drop mw-reverted
+                          revisions before sampling (see below). (default: off)
   --open                  Print the file:// URL of the report when done
   -h, --help              Show this help
+
+Revert collapsing (default on, disable with --keep-reverts):
+  Wikipedia histories are dense with vandalism -> revert cycles. Before
+  sampling, the full revision timeline is collapsed exactly as History Flow
+  does: whenever a revision's content (sha1) exactly matches an earlier
+  revision's, every revision in between — the vandalism, any partial
+  reverts, and the revert itself — is treated as if it never happened.
+  Revisions independently carrying the "mw-reverted" tag (modern vandalism
+  fighting tools tag the reverted edit even when the revert isn't
+  byte-identical) are dropped too. Without this, sampling regularly lands on
+  a vandalized state or straddles a revert, making huge swaths of the
+  article look freshly edited and drowning the real editorial signal —
+  especially in the Recency lens.
 `;
 
 const USER_AGENT = 'deep-diffs-wiki/1.0 (https://github.com/rossshannon/deep-diffs)';
@@ -70,6 +85,7 @@ function parseArgs(argv) {
     out: null,
     mode: 'depth',
     stripMarkup: true,
+    keepReverts: false,
     open: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -112,6 +128,9 @@ function parseArgs(argv) {
         break;
       case '--no-strip-markup':
         opts.stripMarkup = false;
+        break;
+      case '--keep-reverts':
+        opts.keepReverts = true;
         break;
       case '--open':
         opts.open = true;
@@ -182,7 +201,12 @@ async function api(lang, params) {
 /**
  * Fetch the article's full revision metadata, oldest first, following
  * redirects. Returns { title, redirectedFrom, revs, truncated } where each
- * rev is { revid, timestamp, user, size }.
+ * rev is { revid, timestamp, user, size, sha1, tags }.
+ *
+ * sha1 and tags ride this same paginated request — no extra API calls — so
+ * the revert-collapsing pass in main() can run on the full timeline before
+ * sampling. sha1 is `null` for a small minority of revisions (suppressed
+ * text can hide it); tags is always an array, empty when none apply.
  */
 async function fetchHistory(title, lang) {
   const revs = [];
@@ -197,7 +221,7 @@ async function fetchHistory(title, lang) {
       titles: title,
       redirects: '1',
       prop: 'revisions',
-      rvprop: 'ids|timestamp|user|size',
+      rvprop: 'ids|timestamp|user|size|sha1|tags',
       rvlimit: '500',
       rvdir: 'newer',
       rvslots: 'main',
@@ -227,6 +251,8 @@ async function fetchHistory(title, lang) {
         timestamp: r.timestamp,
         user: r.userhidden ? null : (r.user ?? null),
         size: r.size ?? 0,
+        sha1: r.sha1 ?? null, // absent for some suppressed revisions
+        tags: r.tags ?? [],
       });
     }
 
@@ -249,7 +275,7 @@ async function fetchHistory(title, lang) {
       titles: resolvedTitle,
       redirects: '1',
       prop: 'revisions',
-      rvprop: 'ids|timestamp|user|size',
+      rvprop: 'ids|timestamp|user|size|sha1|tags',
       rvlimit: '1',
       rvdir: 'older',
     });
@@ -260,6 +286,8 @@ async function fetchHistory(title, lang) {
         timestamp: latest.timestamp,
         user: latest.userhidden ? null : (latest.user ?? null),
         size: latest.size ?? 0,
+        sha1: latest.sha1 ?? null,
+        tags: latest.tags ?? [],
       });
     }
   }
@@ -315,6 +343,101 @@ async function fetchRevision(lang, revid) {
     comment: rev.commenthidden ? null : (rev.comment ?? ''),
     content,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Revert collapsing (History Flow's collapse rule)
+// ---------------------------------------------------------------------------
+
+/**
+ * Collapse revert cycles out of a full, oldest-first revision-metadata
+ * timeline, before sampling. Wikipedia histories are dense with
+ * vandalism -> revert cycles; sampling that lands on or straddles one makes
+ * a vandalized state (or the revert re-inserting a huge swath of text) look
+ * like fresh editorial activity, drowning the real signal — especially in
+ * the Recency lens, which is exactly what a byte-identical revert should
+ * *not* light up.
+ *
+ * Two independent rules, exactly History Flow's collapse:
+ *
+ * 1. sha1-cycle collapse: walking oldest -> newest, if revision i's sha1
+ *    exactly matches an earlier surviving revision j's sha1, every
+ *    revision from j+1 to i (inclusive) is dropped — the transient span
+ *    (vandalism, any partial reverts, and the revert itself) never
+ *    happened; the article was in revision j's state throughout. Because
+ *    matching uses "most recent surviving occurrence of this sha1", nested
+ *    and repeated cycles collapse correctly: each collapse continues
+ *    scanning from the surviving state, so a second vandalism/revert cycle
+ *    a few edits later collapses again against whatever now remains.
+ *    Revisions with no sha1 (rare; some suppressed revisions omit it)
+ *    never match anything and always survive this rule.
+ * 2. mw-reverted tag drop: independently of sha1, any revision tagged
+ *    "mw-reverted" is dropped. Modern rollback/undo tools tag the reverted
+ *    edit even when the revert doesn't reproduce the exact prior bytes (a
+ *    partial revert, or a revert combined with other changes), which the
+ *    sha1 rule alone would miss.
+ *
+ * The first and last revisions in the timeline are never dropped by either
+ * rule — the report always starts at the true first revision and ends at
+ * the article's current text, matching sampleEvenly's "always keep first +
+ * latest" guarantee elsewhere in this file.
+ *
+ * @param {{revid: number, sha1: string|null, tags: string[]}[]} revs
+ * @param {{keepReverts?: boolean}} [options]
+ * @returns {{revs: object[], collapsedByCycle: number, droppedByTag: number}}
+ */
+function collapseReverts(revs, { keepReverts = false } = {}) {
+  if (keepReverts || revs.length < 2) {
+    return { revs: revs.slice(), collapsedByCycle: 0, droppedByTag: 0 };
+  }
+
+  const firstRevid = revs[0].revid;
+  const lastRevid = revs[revs.length - 1].revid;
+
+  // Pass 1: sha1-cycle collapse. `kept` holds the surviving prefix so far;
+  // `sha1Pos` maps a surviving revision's sha1 to its position in `kept`.
+  // Because collapsing always truncates `kept` and deletes the map entries
+  // for whatever it removes, no two surviving entries ever share a sha1, so
+  // a stale map entry can never point past the truncated length.
+  const kept = [];
+  const sha1Pos = new Map();
+  let collapsedByCycle = 0;
+  for (const r of revs) {
+    if (r.sha1 && sha1Pos.has(r.sha1)) {
+      const posJ = sha1Pos.get(r.sha1);
+      for (let p = posJ + 1; p < kept.length; p++) {
+        if (kept[p].sha1) sha1Pos.delete(kept[p].sha1);
+      }
+      collapsedByCycle += kept.length - (posJ + 1) + 1; // dropped tail + this revision
+      kept.length = posJ + 1;
+    } else {
+      kept.push(r);
+      if (r.sha1) sha1Pos.set(r.sha1, kept.length - 1);
+    }
+  }
+
+  // Safety net: the current article text must always survive. The very
+  // first revision can never be collapsed away by this algorithm (it always
+  // occupies kept[0] and nothing can match "j" before it), but the *last*
+  // revision can — if the article's current state happens to be
+  // byte-identical to an earlier one (a full revert as the latest edit).
+  if (kept.length === 0 || kept[kept.length - 1].revid !== lastRevid) {
+    kept.push(revs[revs.length - 1]);
+    collapsedByCycle = Math.max(0, collapsedByCycle - 1);
+  }
+
+  // Pass 2: independent mw-reverted tag drop (first/last exempt, as above).
+  let droppedByTag = 0;
+  const final = kept.filter((r) => {
+    if (r.revid === firstRevid || r.revid === lastRevid) return true;
+    if (Array.isArray(r.tags) && r.tags.includes('mw-reverted')) {
+      droppedByTag++;
+      return false;
+    }
+    return true;
+  });
+
+  return { revs: final, collapsedByCycle, droppedByTag };
 }
 
 // ---------------------------------------------------------------------------
@@ -609,9 +732,46 @@ function segmentize(text, markers) {
   return segments;
 }
 
-function renderDocument(text, markers, revisions, authorIndex) {
+/**
+ * Fixed real-time buckets for the Recency lens, oldest (1) to newest (6).
+ * Ordered newest-first here (matches "most recent bucket wins first match"
+ * in ageBucket); renderAgeLegend re-sorts by bucket for display.
+ *
+ * Deliberately fixed calendar buckets rather than min-max normalised across
+ * the sampled span: normalising stretches whatever the *last few sampled
+ * revisions* did across the full hue range regardless of how long the
+ * article has actually existed — a 23-year-old article's last month of
+ * edits would still paint "newest", indistinguishable from an article that
+ * is itself only a month old. Fixed buckets read consistently regardless of
+ * article age or how a run happens to sample it: a 5-year-old edit is
+ * always "cool", full stop.
+ */
+const AGE_BUCKETS = [
+  { maxDays: 90, bucket: 6, label: '< 3 mo' },
+  { maxDays: 365, bucket: 5, label: '3–12 mo' },
+  { maxDays: 365 * 2, bucket: 4, label: '1–2 yr' },
+  { maxDays: 365 * 5, bucket: 3, label: '2–5 yr' },
+  { maxDays: 365 * 10, bucket: 2, label: '5–10 yr' },
+  { maxDays: Infinity, bucket: 1, label: '10+ yr' },
+];
+
+/**
+ * Bucket a revision's age (days between its timestamp and `nowMs`) into one
+ * of the six AGE_BUCKETS. An unparseable timestamp falls back to the
+ * oldest/coolest bucket — fail cool, not hot, so a data glitch can't paint
+ * spurious "just edited" heat.
+ */
+function ageBucket(timestamp, nowMs) {
+  const t = new Date(timestamp).getTime();
+  const days = Number.isNaN(t) ? Infinity : (nowMs - t) / 86400000;
+  for (const b of AGE_BUCKETS) {
+    if (days <= b.maxDays) return b.bucket;
+  }
+  return 1;
+}
+
+function renderDocument(text, markers, revisions, authorIndex, nowMs = Date.now()) {
   const segments = segmentize(text, markers);
-  const maxRev = revisions.length - 1;
   let html = '';
   for (const seg of segments) {
     const raw = text.slice(seg.start, seg.end);
@@ -635,11 +795,12 @@ function renderDocument(text, markers, revisions, authorIndex) {
     const touched = Math.max(...seg.covering.map((m) => m.lastTouched));
     const revs = [...new Set(seg.covering.map((m) => m.revision))].sort((a, b) => a - b);
 
-    // Age bucket 1 (old) .. 6 (recent), from the most recent touch.
-    const age = maxRev <= 1 ? 6 : 1 + Math.round((5 * (touched - 1)) / (maxRev - 1));
-
     const rIntro = revisions[introduced];
     const rTouch = revisions[touched];
+
+    // Age bucket 1 (old) .. 6 (recent), from the most recent touch's real
+    // calendar date — not its rank among the sampled revisions.
+    const age = ageBucket(rTouch.timestamp, nowMs);
     const user = displayUser(rIntro);
     const au = authorIndex.has(user) ? authorIndex.get(user) : 'x';
 
@@ -711,6 +872,13 @@ function renderDepthLegend() {
   return chips.join('');
 }
 
+function renderAgeLegend() {
+  const ordered = [...AGE_BUCKETS].sort((a, b) => a.bucket - b.bucket); // oldest (1) -> newest (6)
+  return ordered
+    .map(({ bucket, label }) => `<span class="chip"><ins class="dd lg" data-a="${bucket}">${escapeHtml(label)}</ins></span>`)
+    .join('');
+}
+
 function renderAuthorLegend(topAuthors) {
   const chips = topAuthors.map((u, i) =>
     `<span class="au-chip"><i class="au-dot" data-au="${i}"></i>${escapeHtml(u)}</span>`);
@@ -722,7 +890,7 @@ function renderAuthorLegend(topAuthors) {
 // HTML template
 // ---------------------------------------------------------------------------
 
-function buildHtml({ title, lang, revisions, totalRevisions, contributors, mode, note, docHtml, ledgerHtml, authorLegend }) {
+function buildHtml({ title, lang, revisions, totalRevisions, contributors, mode, note, docHtml, ledgerHtml, authorLegend, ageLegend }) {
   const first = revisions[0];
   const last = revisions[revisions.length - 1];
   const span = `${fmtDate(first.timestamp)} – ${fmtDate(last.timestamp)}`;
@@ -824,10 +992,6 @@ h1.file a:hover { text-decoration: underline; text-decoration-color: var(--accen
 :root:not([data-mode="depth"]) #legend-depth { display: none; }
 :root:not([data-mode="age"]) #legend-age { display: none; }
 :root:not([data-mode="authors"]) #legend-authors { display: none; }
-.agebar {
-  display: inline-block; width: 130px; height: 12px; border-radius: 6px; vertical-align: -1px;
-  background: linear-gradient(to right, var(--a1), var(--a2), var(--a3), var(--a4), var(--a5), var(--a6));
-}
 .au-chip { display: inline-flex; align-items: center; gap: .32rem; margin-right: .35rem; }
 .au-dot {
   display: inline-block; width: 10px; height: 10px; border-radius: 3px;
@@ -851,12 +1015,12 @@ ins.dd[data-d="5"] { --dd: 5; } ins.dd[data-d="6"] { --dd: 6; }
 :root[data-mode="depth"] ins.dd[data-d="4"], ins.dd.lg[data-d="4"] { background: var(--d4); }
 :root[data-mode="depth"] ins.dd[data-d="5"], ins.dd.lg[data-d="5"] { background: var(--d5); }
 :root[data-mode="depth"] ins.dd[data-d="6"], ins.dd.lg[data-d="6"] { background: var(--d6); color: var(--d6fg); }
-:root[data-mode="age"] ins.dd[data-a="1"] { background: var(--a1); }
-:root[data-mode="age"] ins.dd[data-a="2"] { background: var(--a2); }
-:root[data-mode="age"] ins.dd[data-a="3"] { background: var(--a3); }
-:root[data-mode="age"] ins.dd[data-a="4"] { background: var(--a4); }
-:root[data-mode="age"] ins.dd[data-a="5"] { background: var(--a5); }
-:root[data-mode="age"] ins.dd[data-a="6"] { background: var(--a6); color: var(--a6fg); }
+:root[data-mode="age"] ins.dd[data-a="1"], ins.dd.lg[data-a="1"] { background: var(--a1); }
+:root[data-mode="age"] ins.dd[data-a="2"], ins.dd.lg[data-a="2"] { background: var(--a2); }
+:root[data-mode="age"] ins.dd[data-a="3"], ins.dd.lg[data-a="3"] { background: var(--a3); }
+:root[data-mode="age"] ins.dd[data-a="4"], ins.dd.lg[data-a="4"] { background: var(--a4); }
+:root[data-mode="age"] ins.dd[data-a="5"], ins.dd.lg[data-a="5"] { background: var(--a5); }
+:root[data-mode="age"] ins.dd[data-a="6"], ins.dd.lg[data-a="6"] { background: var(--a6); color: var(--a6fg); }
 /* Authors lens: hue = who introduced the wording, opacity deepens with edit
    depth — deep diffs fused with History Flow. */
 ${[0, 1, 2, 3, 4, 5, 6, 7, 'x'].map((i) =>
@@ -922,7 +1086,7 @@ footer.report a { color: var(--accent); }
       <button type="button" data-set="authors">Authors</button>
     </span>
     <span class="legend" id="legend-depth">times edited ${renderDepthLegend()}</span>
-    <span class="legend" id="legend-age">older <span class="agebar"></span> newer</span>
+    <span class="legend" id="legend-age">age of last edit ${ageLegend}</span>
     <span class="legend" id="legend-authors">${authorLegend}</span>
   </div>
 </header>
@@ -1016,9 +1180,25 @@ async function main() {
     die(`"${history.title}" has only ${history.revs.length} revision(s) — nothing to deep-diff yet`);
   }
 
-  const sampledMeta = sampleEvenly(history.revs, opts.maxRevisions);
+  // Collapse revert/vandalism cycles on the full metadata timeline BEFORE
+  // sampling — otherwise sampling regularly lands on (or straddles) a
+  // vandalized state, which drowns real editorial signal, especially in
+  // the Recency lens. See collapseReverts() for the two collapse rules.
+  const { revs: collapsedRevs, collapsedByCycle, droppedByTag } =
+    collapseReverts(history.revs, { keepReverts: opts.keepReverts });
+  if (opts.keepReverts) {
+    process.stderr.write('deep-diffs-wiki: --keep-reverts set — revert/vandalism collapsing skipped\n');
+  } else {
+    process.stderr.write(
+      `deep-diffs-wiki: collapsed ${collapsedByCycle.toLocaleString('en')} revision(s) in sha1 revert cycles and dropped ` +
+      `${droppedByTag.toLocaleString('en')} mw-reverted-tagged revision(s) — ${collapsedRevs.length.toLocaleString('en')} ` +
+      `of ${history.revs.length.toLocaleString('en')} revisions remain\n`
+    );
+  }
+
+  const sampledMeta = sampleEvenly(collapsedRevs, opts.maxRevisions);
   process.stderr.write(
-    `deep-diffs-wiki: ${history.revs.length.toLocaleString('en')} revisions — fetching content for ${sampledMeta.length} sampled revisions …\n`
+    `deep-diffs-wiki: ${collapsedRevs.length.toLocaleString('en')} revisions — fetching content for ${sampledMeta.length} sampled revisions …\n`
   );
 
   // Fetch content sequentially (rate-limit friendly), dropping revisions
@@ -1053,8 +1233,8 @@ async function main() {
     history.revs.filter((r) => r.user !== null).map((r) => r.user)
   ).size;
 
-  const generated = new Date().toISOString().slice(0, 10);
-  const noteParts = [`Fetched live from the MediaWiki API on ${fmtDate(generated)}.`];
+  const now = new Date();
+  const noteParts = [`Fetched live from the MediaWiki API on ${fmtDate(now.toISOString())}.`];
   if (history.redirectedFrom) noteParts.push(`Redirected from “${history.redirectedFrom}”.`);
   if (opts.stripMarkup) {
     noteParts.push('Wikitext lightly stripped for readability (templates, refs, tables and file links removed — approximate).');
@@ -1064,10 +1244,19 @@ async function main() {
   if (history.truncated) {
     noteParts.push(`History longer than ${MAX_META_REVISIONS.toLocaleString('en')} revisions; sampled from the first ${MAX_META_REVISIONS.toLocaleString('en')} plus the latest.`);
   }
+  if (opts.keepReverts) {
+    noteParts.push('Revert/vandalism collapsing disabled (--keep-reverts).');
+  } else if (collapsedByCycle + droppedByTag > 0) {
+    noteParts.push(
+      `${(collapsedByCycle + droppedByTag).toLocaleString('en')} reverted/vandalised revisions collapsed before sampling ` +
+      `(${collapsedByCycle.toLocaleString('en')} matched an earlier revision byte-for-byte, ${droppedByTag.toLocaleString('en')} tagged mw-reverted).`
+    );
+  }
 
-  const docHtml = renderDocument(text, markers, revisions, authorIndex);
+  const docHtml = renderDocument(text, markers, revisions, authorIndex, now.getTime());
   const ledgerHtml = renderLedger(revisions, churn, authorIndex, opts.lang, markers);
   const authorLegend = renderAuthorLegend(topAuthors);
+  const ageLegend = renderAgeLegend();
 
   const html = buildHtml({
     title: history.title,
@@ -1080,6 +1269,7 @@ async function main() {
     docHtml,
     ledgerHtml,
     authorLegend,
+    ageLegend,
   });
 
   const slug = history.title.replace(/[^\p{L}\p{N}._-]+/gu, '_');
@@ -1139,4 +1329,7 @@ export {
   renderLedger,
   renderDepthLegend,
   renderAuthorLegend,
+  renderAgeLegend,
+  ageBucket,
+  collapseReverts,
 };
