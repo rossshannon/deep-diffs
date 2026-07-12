@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep Diffs &times; ProseMirror — editor decorations</title>
+<style>
+/* ============================================================
+   Deep Diffs × ProseMirror — design tokens
+   Same design language as the sibling demos (living-draft.html):
+   light is the default; dark comes from prefers-color-scheme,
+   and an explicit [data-theme] wins in both directions.
+   ============================================================ */
+:root {
+  --bg: #f7f5f0;
+  --surface: #fffdf9;
+  --surface-2: #f1eee6;
+  --ink: #2b2620;
+  --ink-soft: #57503f;
+  --muted: #8d8574;
+  --line: #e4dfd2;
+  --line-soft: #ece8dc;
+  --accent: #c2410c;
+  --accent-soft: rgba(194, 65, 12, 0.12);
+  --chip-bg: #efe9db;
+  --focus: #b45309;
+  --strip-track: #ece7da;
+  --shadow: 0 1px 2px rgba(70, 55, 30, 0.05), 0 10px 34px -18px rgba(70, 55, 30, 0.25);
+  --sel: rgba(194, 100, 40, 0.22);
+  --seg-active: #fffdf9;
+  --dd-hot: #37a24a;    /* geology: the library's signature green */
+  --dd-ember: #e8590c;  /* embers: cooling-iron orange */
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14110d;
+    --surface: #1c1813;
+    --surface-2: #221d17;
+    --ink: #ece4d4;
+    --ink-soft: #c4b8a0;
+    --muted: #8f8470;
+    --line: #322b22;
+    --line-soft: #2a241c;
+    --accent: #f59e5b;
+    --accent-soft: rgba(245, 158, 91, 0.14);
+    --chip-bg: #2a241b;
+    --focus: #f5b06b;
+    --strip-track: #241f18;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 38px -18px rgba(0, 0, 0, 0.7);
+    --sel: rgba(245, 158, 91, 0.28);
+    --seg-active: #3a3226;
+    --dd-hot: #2f8a41;
+    --dd-ember: #f0762e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f7f5f0;
+  --surface: #fffdf9;
+  --surface-2: #f1eee6;
+  --ink: #2b2620;
+  --ink-soft: #57503f;
+  --muted: #8d8574;
+  --line: #e4dfd2;
+  --line-soft: #ece8dc;
+  --accent: #c2410c;
+  --accent-soft: rgba(194, 65, 12, 0.12);
+  --chip-bg: #efe9db;
+  --focus: #b45309;
+  --strip-track: #ece7da;
+  --shadow: 0 1px 2px rgba(70, 55, 30, 0.05), 0 10px 34px -18px rgba(70, 55, 30, 0.25);
+  --sel: rgba(194, 100, 40, 0.22);
+  --seg-active: #fffdf9;
+  --dd-hot: #37a24a;
+  --dd-ember: #e8590c;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #14110d;
+  --surface: #1c1813;
+  --surface-2: #221d17;
+  --ink: #ece4d4;
+  --ink-soft: #c4b8a0;
+  --muted: #8f8470;
+  --line: #322b22;
+  --line-soft: #2a241c;
+  --accent: #f59e5b;
+  --accent-soft: rgba(245, 158, 91, 0.14);
+  --chip-bg: #2a241b;
+  --focus: #f5b06b;
+  --strip-track: #241f18;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 38px -18px rgba(0, 0, 0, 0.7);
+  --sel: rgba(245, 158, 91, 0.28);
+  --seg-active: #3a3226;
+  --dd-hot: #2f8a41;
+  --dd-ember: #f0762e;
+  color-scheme: dark;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { height: 100%; }
+body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+.page {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 2.2rem clamp(1rem, 4vw, 2.6rem) 3.5rem;
+}
+
+/* ---------- header ---------- */
+.masthead { display: flex; align-items: flex-start; gap: 1rem; justify-content: space-between; }
+.masthead h1 {
+  font-family: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.7rem, 3.4vw, 2.35rem);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.masthead h1 .times { color: var(--muted); font-weight: 400; padding: 0 0.12em; }
+.tagline {
+  max-width: 48rem;
+  margin-top: 0.55rem;
+  color: var(--ink-soft);
+  font-size: 0.98rem;
+}
+.tagline a { color: var(--accent); text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 2px; }
+.tagline a:hover { text-decoration-color: var(--accent); }
+
+/* ---------- toolbar ---------- */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem 1.1rem;
+  margin: 1.6rem 0 1.1rem;
+}
+.toolbar .spacer { flex: 1; }
+.tool-group { display: flex; align-items: center; gap: 0.45rem; }
+.tool-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.32rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+  white-space: nowrap;
+}
+.seg button:hover { color: var(--ink); }
+.seg button[aria-checked="true"] {
+  background: var(--seg-active);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.btn {
+  appearance: none;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.36rem 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+}
+.btn:hover { color: var(--ink); border-color: var(--muted); }
+.btn.icon { padding: 0.42rem 0.6rem; display: inline-flex; align-items: center; }
+.btn.fmt { font-family: Charter, Georgia, serif; min-width: 2.2rem; text-align: center; }
+.btn.fmt b { font-weight: 700; }
+
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- workspace layout ---------- */
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  gap: 1.6rem;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- heat strip ---------- */
+.strip-wrap {
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--strip-track);
+  border: 1px solid var(--line-soft);
+  margin-bottom: 0.8rem;
+}
+.strip-wrap canvas { display: block; width: 100%; height: 100%; }
+
+/* ---------- editor ---------- */
+.editor-col { min-width: 0; max-width: 52rem; }
+.editor-frame {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: background-color 0.35s ease, border-color 0.35s ease;
+}
+
+/* Minimal prosemirror-view base styles (normally style/prosemirror.css). */
+.ProseMirror {
+  position: relative;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  -webkit-font-variant-ligatures: none;
+  font-variant-ligatures: none;
+  outline: none;
+}
+.ProseMirror-hideselection *::selection { background: transparent; }
+.ProseMirror-hideselection { caret-color: transparent; }
+
+.editor-frame .ProseMirror {
+  font-family: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  font-size: 1.14rem;
+  line-height: 1.85;
+  color: var(--ink);
+  caret-color: var(--ink);
+  min-height: clamp(320px, 52vh, 600px);
+  padding: 2rem clamp(1.3rem, 4vw, 2.6rem) 2.4rem;
+}
+.editor-frame .ProseMirror ::selection { background: var(--sel); }
+.editor-frame .ProseMirror::selection { background: var(--sel); }
+.editor-frame .ProseMirror p { margin: 0 0 1em; }
+.editor-frame .ProseMirror p:last-child { margin-bottom: 0; }
+.editor-frame .ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  margin: 0 0 0.7em;
+}
+.editor-frame .ProseMirror h3 { font-size: 1.2em; font-weight: 600; margin: 1em 0 0.5em; }
+.editor-frame .ProseMirror blockquote {
+  border-left: 3px solid var(--line);
+  margin: 0 0 1em;
+  padding-left: 1em;
+  color: var(--ink-soft);
+}
+
+/* Decoration spans get their backgrounds from the plugin's generated CSS
+   (deepDiffsStyles), keyed off --dd-hot / --dd-ember above. */
+
+/* ---------- status bar under editor ---------- */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.75rem;
+  min-height: 2rem;
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--chip-bg);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 0.26rem 0.8rem;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.chip .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted);
+  transition: background-color 0.4s ease;
+}
+.chip.pulse { animation: chip-pulse 0.7s ease; }
+.chip.pulse .dot { background: var(--accent); }
+@keyframes chip-pulse {
+  0% { box-shadow: 0 0 0 0 var(--accent-soft); transform: scale(1); }
+  35% { box-shadow: 0 0 0 7px var(--accent-soft); transform: scale(1.045); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+.status-note { font-size: 0.8rem; color: var(--muted); }
+
+/* ---------- rail ---------- */
+.rail { display: flex; flex-direction: column; gap: 1rem; }
+.rail-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow);
+  transition: background-color 0.35s ease, border-color 0.35s ease;
+}
+.rail-card h2 {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.7rem;
+}
+.rail-note { font-size: 0.84rem; color: var(--ink-soft); }
+.rail-note p + p { margin-top: 0.55rem; }
+.rail-note strong { color: var(--ink); font-weight: 600; }
+.rail-note code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  padding: 0.05em 0.3em;
+}
+.legend { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+.legend .bar { flex: 1; height: 8px; border-radius: 4px; }
+.legend .k { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+footer.colophon {
+  margin-top: 2.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+footer.colophon a { color: inherit; }
+
+@media (max-width: 720px) {
+  .page { padding-top: 1.4rem; }
+  .masthead { flex-direction: column; }
+  .editor-frame .ProseMirror { font-size: 1.05rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body, .seg button, .btn, .deep-diff { transition: none !important; }
+  .chip.pulse { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div>
+      <h1>Deep Diffs <span class="times">&times;</span> ProseMirror</h1>
+      <p class="tagline">
+        The <a href="../docs/FUTURE-DIRECTIONS.md">FUTURE-DIRECTIONS</a> &ldquo;editor
+        decorations&rdquo; direction made concrete: a real ProseMirror plugin whose state is a live
+        list of deep-diff markers, mapped through every transaction &mdash; the editor&rsquo;s own
+        position mapping playing the role of the library&rsquo;s marker transform &mdash; and rendered
+        as stacked inline decorations that glow beneath the text as you write. Technique from
+        <a href="https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf">Shannon,
+        Quigley&nbsp;&amp;&nbsp;Nixon, <em>Deep Diffs</em> (AVI&nbsp;2010)</a>.
+      </p>
+    </div>
+    <button class="btn icon" id="themeToggle" aria-label="Toggle colour theme" title="Toggle colour theme">
+      <svg id="glyphMoon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      <svg id="glyphSun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+        <circle cx="12" cy="12" r="4.5"/>
+        <path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="toolbar">
+    <div class="tool-group">
+      <span class="tool-label" id="modeLabel">Heat</span>
+      <div class="seg" role="radiogroup" aria-labelledby="modeLabel" id="modeSeg">
+        <button role="radio" aria-checked="true" data-value="geology">Geology</button>
+        <button role="radio" aria-checked="false" data-value="embers" tabindex="-1">Embers</button>
+      </div>
+    </div>
+
+    <div class="tool-group" aria-label="Formatting">
+      <button class="btn fmt" id="boldBtn" title="Bold (Mod-B)"><b>B</b></button>
+      <button class="btn fmt" id="italicBtn" title="Italic (Mod-I)"><em>I</em></button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="tool-group">
+      <button class="btn" id="commitBtn" title="Commit a snapshot now instead of waiting for the pause">Commit snapshot</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="editor-col">
+      <div class="strip-wrap" aria-hidden="true"><canvas id="strip"></canvas></div>
+
+      <div class="editor-frame" id="editorFrame">
+        <div id="editor" aria-label="Draft editor"></div>
+      </div>
+
+      <div class="statusbar">
+        <span class="chip" id="snapChip"><span class="dot"></span><span id="snapChipText">0 snapshots</span></span>
+        <span class="status-note" id="statusNote" role="status">Type into the draft &mdash; pause, and your edit becomes a snapshot.</span>
+      </div>
+    </div>
+
+    <aside class="rail">
+      <div class="rail-card rail-note">
+        <h2>The plugin</h2>
+        <p>Plugin state holds markers <code>{from, to, revision, lastTouched}</code> in
+        document positions. Every transaction pushes them through
+        <code>tr.mapping</code> &mdash; ProseMirror&rsquo;s built-in operational transform, the
+        very thing <code>transformMarkers</code> hand-rolls in the core library &mdash; then the
+        <code>DecorationSet</code> is rebuilt so nesting depth stays true to the overlaps.</p>
+        <p>Overlapping markers are flattened into <code>Decoration.inline</code> segments that
+        carry their stacking depth (<code>data-depth</code>, class <code>dd-d3</code>&hellip;), so a
+        thrice-reworked phrase sits three markers deep: the same nested-intensity heatmap as the
+        library&rsquo;s <code>&lt;ins&gt;</code> output, live in a rich-text editor.</p>
+      </div>
+
+      <div class="rail-card rail-note">
+        <h2>Geology vs. Embers</h2>
+        <p><strong>Geology</strong> is the classic deep diff: heat never fades, so depth of colour
+        means <em>total</em> snapshots that ever touched a passage &mdash; strata of editorial sediment.</p>
+        <p><strong>Embers</strong> lets each region cool as snapshots pass without touching it
+        (heat&nbsp;&times;&nbsp;e<sup>&minus;age/&tau;</sup>, &tau;&nbsp;=&nbsp;6 snapshots). What stays bright
+        is where your attention is circling <em>right now</em>.</p>
+        <div class="legend" aria-hidden="true">
+          <span class="k">cool</span>
+          <span class="bar" id="legendBar"></span>
+          <span class="k">reworked</span>
+        </div>
+      </div>
+
+      <div class="rail-card rail-note">
+        <h2>How snapshots happen</h2>
+        <p>A revision commits when the document has changed and you pause for
+        <strong>2&nbsp;seconds</strong> (configurable <code>snapshotMs</code>), or when you press
+        <strong>Commit snapshot</strong> (the <code>commitSnapshot</code> command). Inserted ranges are
+        gathered from each transaction&rsquo;s step maps &mdash; exact provenance, no diffing &mdash;
+        and uncommitted typing shows as a whisper-light provisional tint until it lands.</p>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="colophon">
+    Self-contained demo &mdash; ProseMirror (MIT, marijnh &amp; contributors) and the
+    <code>deep-diffs</code> plugin from <code>integrations/prosemirror/</code> are bundled inline;
+    no network required. Rebuild with <code>node integrations/prosemirror/build.mjs</code>.
+  </footer>
+</div>
+
+<!-- Seed document, parsed by prosemirror-model's DOMParser at boot. -->
+<div id="seed" hidden>
+  <h2>On Second Thoughts</h2>
+  <p>Every draft keeps a diary it never shows you. The sentences that arrived whole and were
+  never questioned sit beside the ones that were torn down and rebuilt <em>five times</em>,
+  and on the page they look exactly alike.</p>
+  <p>This editor disagrees. Beneath the text, a <strong>deep diff</strong> accumulates: pause
+  for a moment and your edits commit as a quiet snapshot; rework the same phrase again and the
+  highlight deepens, stratum on stratum. Where the colour pools is where your attention has
+  been living.</p>
+  <p>Try it &mdash; rewrite the opening line, fuss over a word in the middle paragraph, then
+  fuss over it again. The heat will find your habits.</p>
+</div>
+
+<script>
+/*__BUNDLE__*/
+</script>
+</body>
+</html>

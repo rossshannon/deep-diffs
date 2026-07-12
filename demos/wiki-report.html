@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="authors">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep diff · Ship of Theseus</title>
+<style>
+:root {
+  --bg: #faf8f4; --fg: #23201a; --muted: #7a7468; --rule: #e6e1d6;
+  --card: #ffffff; --accent: #b4531f; --chrome-bg: #f2efe8;
+  --d1:#fdf2c3; --d2:#fbdf90; --d3:#f8c260; --d4:#f09c44; --d5:#e26f39; --d6:#cc4b2e;
+  --a1:#e3e7ea; --a2:#d3dfe8; --a3:#cfe3d6; --a4:#f4e3a5; --a5:#f6c47e; --a6:#ef9450;
+  --d6fg:#fff7ef; --a6fg:#2b1a10;
+  /* Author hues: Okabe–Ito derived, as space-separated RGB triplets so they
+     compose as rgb(var(--auN) / alpha). --aux = the "others" bucket. */
+  --au0: 0 114 178;    /* blue */
+  --au1: 230 159 0;    /* orange */
+  --au2: 0 158 115;    /* bluish green */
+  --au3: 213 94 0;     /* vermillion */
+  --au4: 86 180 233;   /* sky blue */
+  --au5: 204 121 167;  /* reddish purple */
+  --au6: 136 118 43;   /* olive (yellow, darkened for light bg) */
+  --au7: 108 91 173;   /* violet */
+  --aux: 128 124 116;  /* others: warm grey */
+  --ascale: 1;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#16181c; --fg:#dcd8cf; --muted:#8f8a80; --rule:#2c2f35;
+    --card:#1d2025; --accent:#e08050; --chrome-bg:#1a1d21;
+    --d1:rgba(250,204,21,.14); --d2:rgba(250,190,40,.26); --d3:rgba(248,155,40,.38);
+    --d4:rgba(243,112,50,.50); --d5:rgba(235,80,50,.62); --d6:rgba(220,50,45,.74);
+    --a1:rgba(148,163,184,.16); --a2:rgba(125,155,200,.22); --a3:rgba(110,180,150,.24);
+    --a4:rgba(240,200,90,.30); --a5:rgba(245,150,70,.44); --a6:rgba(240,90,45,.60);
+    --d6fg:#f6ede6; --a6fg:#f6ede6;
+    --au0: 78 156 222;
+    --au1: 235 172 32;
+    --au2: 46 178 134;
+    --au3: 232 116 34;
+    --au4: 108 190 238;
+    --au5: 222 138 182;
+    --au6: 190 170 80;
+    --au7: 146 128 214;
+    --aux: 138 134 126;
+    --ascale: .86;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.page { max-width: 1160px; margin: 0 auto; padding: 2.2rem 2rem 3rem; }
+header.report {
+  border-bottom: 1px solid var(--rule); padding-bottom: 1.2rem; margin-bottom: 1.8rem;
+}
+.eyebrow {
+  font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600; margin: 0 0 .35rem;
+}
+h1.file {
+  margin: 0 0 .4rem; font-size: 1.9rem; font-weight: 650;
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  letter-spacing: -.01em;
+}
+h1.file a { color: inherit; text-decoration: none; }
+h1.file a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+.meta { color: var(--muted); font-size: .88rem; margin: 0; }
+.meta b { color: var(--fg); font-weight: 600; }
+.note {
+  margin: .8rem 0 0; font-size: .84rem; color: var(--muted);
+  border-left: 3px solid var(--accent); padding: .15rem .7rem;
+}
+.controls {
+  display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center;
+  margin-top: 1.1rem;
+}
+.toggle { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; background: var(--chrome-bg); }
+.toggle button {
+  border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .8rem;
+  padding: .3rem .85rem; cursor: pointer;
+}
+:root[data-mode="depth"] .toggle button[data-set="depth"],
+:root[data-mode="age"] .toggle button[data-set="age"],
+:root[data-mode="authors"] .toggle button[data-set="authors"] {
+  background: var(--fg); color: var(--bg);
+}
+.legend { display: inline-flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--muted); flex-wrap: wrap; }
+.legend .chip ins.dd { padding: .18rem .45rem; border-radius: 3px; font-variant-numeric: tabular-nums; }
+:root:not([data-mode="depth"]) #legend-depth { display: none; }
+:root:not([data-mode="age"]) #legend-age { display: none; }
+:root:not([data-mode="authors"]) #legend-authors { display: none; }
+.au-chip { display: inline-flex; align-items: center; gap: .32rem; margin-right: .35rem; }
+.au-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+  vertical-align: -1px; margin-right: .3rem; flex: none;
+}
+.au-chip .au-dot { margin-right: 0; }
+.au-dot[data-au="0"] { background: rgb(var(--au0) / .85); }
+.au-dot[data-au="1"] { background: rgb(var(--au1) / .85); }
+.au-dot[data-au="2"] { background: rgb(var(--au2) / .85); }
+.au-dot[data-au="3"] { background: rgb(var(--au3) / .85); }
+.au-dot[data-au="4"] { background: rgb(var(--au4) / .85); }
+.au-dot[data-au="5"] { background: rgb(var(--au5) / .85); }
+.au-dot[data-au="6"] { background: rgb(var(--au6) / .85); }
+.au-dot[data-au="7"] { background: rgb(var(--au7) / .85); }
+.au-dot[data-au="x"] { background: rgb(var(--aux) / .85); }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 3rem; align-items: start; }
+article.doc {
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 1.02rem; line-height: 1.72; max-width: 68ch;
+  white-space: pre-wrap; overflow-wrap: break-word;
+}
+ins.dd { text-decoration: none; border-radius: 2px; padding: 0 .04em; transition: outline-color .15s; }
+ins.dd[data-d="1"] { --dd: 1; } ins.dd[data-d="2"] { --dd: 2; }
+ins.dd[data-d="3"] { --dd: 3; } ins.dd[data-d="4"] { --dd: 4; }
+ins.dd[data-d="5"] { --dd: 5; } ins.dd[data-d="6"] { --dd: 6; }
+:root[data-mode="depth"] ins.dd[data-d="1"], ins.dd.lg[data-d="1"] { background: var(--d1); }
+:root[data-mode="depth"] ins.dd[data-d="2"], ins.dd.lg[data-d="2"] { background: var(--d2); }
+:root[data-mode="depth"] ins.dd[data-d="3"], ins.dd.lg[data-d="3"] { background: var(--d3); }
+:root[data-mode="depth"] ins.dd[data-d="4"], ins.dd.lg[data-d="4"] { background: var(--d4); }
+:root[data-mode="depth"] ins.dd[data-d="5"], ins.dd.lg[data-d="5"] { background: var(--d5); }
+:root[data-mode="depth"] ins.dd[data-d="6"], ins.dd.lg[data-d="6"] { background: var(--d6); color: var(--d6fg); }
+:root[data-mode="age"] ins.dd[data-a="1"], ins.dd.lg[data-a="1"] { background: var(--a1); }
+:root[data-mode="age"] ins.dd[data-a="2"], ins.dd.lg[data-a="2"] { background: var(--a2); }
+:root[data-mode="age"] ins.dd[data-a="3"], ins.dd.lg[data-a="3"] { background: var(--a3); }
+:root[data-mode="age"] ins.dd[data-a="4"], ins.dd.lg[data-a="4"] { background: var(--a4); }
+:root[data-mode="age"] ins.dd[data-a="5"], ins.dd.lg[data-a="5"] { background: var(--a5); }
+:root[data-mode="age"] ins.dd[data-a="6"], ins.dd.lg[data-a="6"] { background: var(--a6); color: var(--a6fg); }
+/* Authors lens: hue = who introduced the wording, opacity deepens with edit
+   depth — deep diffs fused with History Flow. */
+:root[data-mode="authors"] ins.dd[data-au="0"] { background: rgb(var(--au0) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="1"] { background: rgb(var(--au1) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="2"] { background: rgb(var(--au2) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="3"] { background: rgb(var(--au3) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="4"] { background: rgb(var(--au4) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="5"] { background: rgb(var(--au5) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="6"] { background: rgb(var(--au6) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="7"] { background: rgb(var(--au7) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+:root[data-mode="authors"] ins.dd[data-au="x"] { background: rgb(var(--aux) / calc((.13 + var(--dd, 1) * .065) * var(--ascale))); }
+article.doc ins.dd:hover { outline: 2px solid var(--accent); outline-offset: 1px; cursor: help; }
+article.doc.focus ins.dd:not(.hit) { opacity: .35; }
+article.doc ins.dd.hit { outline: 2px solid var(--accent); outline-offset: 1px; }
+aside.ledger { position: sticky; top: 1.2rem; max-height: calc(100vh - 2.4rem); overflow: auto; }
+aside.ledger h2 {
+  font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; margin: 0 0 .7rem;
+}
+aside.ledger .hint { font-size: .74rem; color: var(--muted); margin: -.3rem 0 .7rem; }
+ol.commits { list-style: none; margin: 0; padding: 0; }
+li.commit {
+  display: flex; gap: .6rem; align-items: flex-start;
+  padding: .5rem .6rem; border-radius: 8px; cursor: default;
+}
+li.commit:hover, li.commit:focus-visible { background: var(--chrome-bg); outline: none; }
+.dot { flex: none; width: 11px; height: 11px; border-radius: 50%; margin-top: .32rem; border: 1px solid rgba(0,0,0,.12); }
+@media (prefers-color-scheme: dark) { .dot { border-color: rgba(255,255,255,.15); } }
+.dot.m0 { background: transparent; border: 2px solid var(--muted); }
+.dot.m1 { background: var(--d1); } .dot.m2 { background: var(--d2); }
+.dot.m3 { background: var(--d3); } .dot.m4 { background: var(--d5); }
+.dot.m5 { background: var(--d6); }
+.c-body { min-width: 0; display: block; }
+.c-top { display: flex; gap: .5rem; align-items: baseline; min-width: 0; }
+a.sha { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .76rem; color: var(--accent); flex: none; text-decoration: none; }
+a.sha:hover { text-decoration: underline; }
+.subject { font-size: .84rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-meta { display: flex; align-items: center; font-size: .74rem; color: var(--muted); margin-top: .1rem; min-width: 0; }
+.c-meta .au-dot { width: 8px; height: 8px; }
+.revert-glyph {
+  flex: none; font-size: .74rem; color: var(--muted); line-height: 1;
+}
+li.commit.is-revert .subject { color: var(--muted); font-weight: 500; }
+footer.report {
+  border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1rem;
+  font-size: .8rem; color: var(--muted);
+}
+footer.report a { color: var(--accent); }
+#tip {
+  position: fixed; z-index: 10; max-width: 340px; padding: .45rem .65rem;
+  background: var(--fg); color: var(--bg); border-radius: 6px;
+  font: .76rem/1.45 system-ui, sans-serif; white-space: pre-line;
+  pointer-events: none; opacity: 0; transition: opacity .12s; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+}
+#tip.show { opacity: 1; }
+@media (max-width: 980px) {
+  main { grid-template-columns: 1fr; }
+  aside.ledger { position: static; max-height: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="report">
+  <p class="eyebrow">Deep diff report · Wikipedia</p>
+  <h1 class="file"><a href="https://en.wikipedia.org/wiki/Ship_of_Theseus">Ship of Theseus</a></h1>
+  <p class="meta"><b>en.wikipedia.org</b> · 100 of 2,150 revisions (evenly sampled) · 15 Jul 2003 – 4 Jul 2026 · 1,268 contributors across the full history</p>
+  <p class="note">Fetched live from the MediaWiki API on 12 Jul 2026. Wikitext lightly stripped for readability (templates, refs, tables and file links removed — approximate). 562 reverted/vandalised revisions collapsed before sampling (559 matched an earlier revision byte-for-byte, 3 tagged mw-reverted). 1 sampled revision(s) are themselves reverts/rollbacks with no better non-flagged substitute nearby (marked ↩ in the ledger); their attributed authorship in the document favours the restored earlier revision where the content matches one byte-for-byte.</p>
+  <div class="controls">
+    <span class="toggle" role="group" aria-label="Heat mode">
+      <button type="button" data-set="depth">Edit depth</button>
+      <button type="button" data-set="age">Recency</button>
+      <button type="button" data-set="authors">Authors</button>
+    </span>
+    <span class="legend" id="legend-depth">times edited <span class="chip"><ins class="dd lg" data-d="1">×1</ins></span><span class="chip"><ins class="dd lg" data-d="2">×2</ins></span><span class="chip"><ins class="dd lg" data-d="3">×3</ins></span><span class="chip"><ins class="dd lg" data-d="4">×4</ins></span><span class="chip"><ins class="dd lg" data-d="5">×5</ins></span><span class="chip"><ins class="dd lg" data-d="6">×6+</ins></span></span>
+    <span class="legend" id="legend-age">age of last edit <span class="chip"><ins class="dd lg" data-a="1">10+ yr</ins></span><span class="chip"><ins class="dd lg" data-a="2">5–10 yr</ins></span><span class="chip"><ins class="dd lg" data-a="3">2–5 yr</ins></span><span class="chip"><ins class="dd lg" data-a="4">1–2 yr</ins></span><span class="chip"><ins class="dd lg" data-a="5">3–12 mo</ins></span><span class="chip"><ins class="dd lg" data-a="6">&lt; 3 mo</ins></span></span>
+    <span class="legend" id="legend-authors"><span class="au-chip"><i class="au-dot" data-au="0"></i>Carchasm</span><span class="au-chip"><i class="au-dot" data-au="1"></i>JhiXaz</span><span class="au-chip"><i class="au-dot" data-au="2"></i>Arjayay</span><span class="au-chip"><i class="au-dot" data-au="3"></i>~2026-38176-45</span><span class="au-chip"><i class="au-dot" data-au="4"></i>Vargenau</span><span class="au-chip"><i class="au-dot" data-au="5"></i>209.6.186.139</span><span class="au-chip"><i class="au-dot" data-au="6"></i>JETM</span><span class="au-chip"><i class="au-dot" data-au="7"></i>Root4(one)</span><span class="au-chip"><i class="au-dot" data-au="x"></i>others</span></span>
+  </div>
+</header>
+<main>
+  <article class="doc" id="doc"><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="81" data-revs="81" data-touched="81" data-tip="added 18 May 2022 by Thrakkx (+15 other revisions since 16 Feb 2022) · “(no edit summary)”
+edited ×1">T</ins><ins class="dd" data-d="1" data-a="3" data-au="4" data-rev="1" data-revs="1" data-touched="79" data-tip="added 16 Jul 2004 by Vargenau (+15 other revisions since 15 Jul 2003) · “coherent TOC”
+last reworked 27 Nov 2021 by Citation bot (+15 other revisions since 11 Oct 2021) · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
+edited ×1">he </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="79" data-revs="1,79" data-touched="79" data-tip="added 27 Nov 2021 by Citation bot (+15 other revisions since 11 Oct 2021) · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
+edited ×2">S</ins><ins class="dd" data-d="1" data-a="3" data-au="4" data-rev="1" data-revs="1" data-touched="79" data-tip="added 16 Jul 2004 by Vargenau (+15 other revisions since 15 Jul 2003) · “coherent TOC”
+last reworked 27 Nov 2021 by Citation bot (+15 other revisions since 11 Oct 2021) · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
+edited ×1">hip of Theseus</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="93" data-revs="93" data-touched="93" data-tip="added 3 May 2024 by Notxabee (+15 other revisions since 29 Mar 2024) · “It is also known as &quot;Theseus's Paradox&quot;.”
+edited ×1">, also known as Theseus's Paradox,</ins> <ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="18" data-revs="17,18" data-touched="98" data-tip="added 18 Apr 2008 by Albmont (+15 other revisions since 10 Feb 2008) · “pt:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">is a </ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="95" data-revs="17,18,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×3">paradox </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="17,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">and common thought experiment about whether an object (in the most common stating of the paradox, a ship) i</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="17,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">s the same object</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="91" data-revs="17,91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2"> after having</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins (+16 other revisions since 18 Nov 2007) · “→Aristotle's causes:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> all </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="50" data-revs="17,50" data-touched="98" data-tip="added 7 Feb 2015 by TangoTizerWolfstone (+16 other revisions since 1 Oct 2014) · “→Modern day:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">of </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins (+16 other revisions since 18 Nov 2007) · “→Aristotle's causes:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">its </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="82" data-revs="17,82" data-touched="98" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">original </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins (+16 other revisions since 18 Nov 2007) · “→Aristotle's causes:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">components replaced</ins> <ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="98" data-revs="17,94,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×3">with others </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="17,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">over time</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins (+16 other revisions since 18 Nov 2007) · “→Aristotle's causes:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">.</ins>
+
+<ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="90" data-revs="84,90" data-touched="91" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+edited ×2">In Greek mythology</ins><ins class="dd" data-d="1" data-a="3" data-au="2" data-rev="84" data-revs="84" data-touched="91" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+edited ×1">,</ins> <ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">Theseus</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">,</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="68,83,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> the</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> mythical </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="91" data-revs="68,83,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">king of the city</ins> <ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="68,83,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">of </ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">Athens,</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> rescued the children of Athens from King Minos after slaying the </ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">M</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">inotaur and then escaped on</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 (+15 other revisions since 14 Feb 2023) · “→In popular culture: grammar”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">to</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> a ship </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 (+15 other revisions since 14 Feb 2023) · “→In popular culture: grammar”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">going </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">to Delos. E</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 (+15 other revisions since 14 Feb 2023) · “→In popular culture: grammar”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">ach</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> year, the Athenians </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="91" data-revs="68,83,84,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">would </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">commemorate this by taking</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> the </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">craft</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> o</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">n a pilgrimage to Delos to hono</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="91" data-revs="68,83,84,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">u</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">r Apollo. </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">Over time, </ins><ins class="dd" data-d="5" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,97,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×5">various</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4"> of its </ins><ins class="dd" data-d="5" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,97,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×5">timber</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">s rotted and were replaced. </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,84,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">A</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> question was raised by </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,84,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">ancient</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> philosophers: </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">If no pieces of the original </ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="68,83,95,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">remained in</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> the current </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,95,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">ship</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="96" data-revs="68,83,95,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">,</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> was it still the Ship of Theseus? </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,95,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">If it was no longer the same</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">, when had it ceased existing as the original</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> ship?</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> Seventeenth</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,97,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">-</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">century philosopher</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> Thomas Hobbes further question</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,96,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">ed</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> how to consider a second ship that had been built entirely from pieces removed from the original.</ins>
+
+<ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">In contemporary philosophy, th</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">e</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> thought experimen</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="82" data-revs="68,82" data-touched="99" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">t has applications to</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="81" data-revs="68,81" data-touched="99" data-tip="added 18 May 2022 by Thrakkx (+15 other revisions since 16 Feb 2022) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> the </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="82" data-revs="82" data-touched="96" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×1">philosophical study of identity</ins><ins class="dd" data-d="2" data-a="5" data-au="2" data-rev="84" data-revs="82,84" data-touched="96" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×2"> over time</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="82,94" data-touched="96" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×2">. </ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="96" data-revs="82,94,96" data-touched="96" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×3">Within the contemporary philosophy of mind, i</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="82,94" data-touched="96" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×2">t</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="82" data-revs="82" data-touched="96" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×1"> has inspired a variety of proposed solutions </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="88" data-revs="82,88" data-touched="96" data-tip="added 29 Jul 2023 by Ansh Saxena 7163 (+15 other revisions since 24 Feb 2023) · “(no edit summary)”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×2">and concepts </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="96" data-revs="96" data-touched="96" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×1">regarding</ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+edited ×1"> the persistence of personal identity.
+
+History
+In its original formulation, the &quot;Ship of Theseus&quot; paradox concerns a debate over whether a ship that </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="84,95" data-touched="97" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+edited ×2">has </ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+edited ×1">had all of </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="86" data-revs="84,86" data-touched="97" data-tip="added 14 Feb 2023 by Philoserf (+15 other revisions since 29 Sept 2022) · “light c/e”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+edited ×2">its </ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+edited ×1">components replaced one by one would remain the same ship. The account of the problem has been preserved by Plutarch in his Life of Theseus:</ins>
+
+<ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="71,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">The seventeenth</ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="98" data-revs="71,97,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×3">-</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="71,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">century</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> philosopher Thomas Hobbes </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="83" data-revs="71,83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">extended the thought experiment by suppos</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">ing </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="83" data-revs="71,83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">t</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">hat </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">a </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="91" data-revs="83,91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">ship </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">custodian gathered up all of the decayed parts as they were disposed and used </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="83,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">them</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> to build a second ship</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="83,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">,  then asked which of the two</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="83,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">—</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">the custodian</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="90" data-revs="83,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">'</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">s or the Athenians</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="90" data-revs="83,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">'</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="83,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">—</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">was the </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="83,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">&quot;</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">original&quot; ship</ins><ins class="dd" data-d="1" data-a="3" data-au="0" data-rev="82" data-revs="82" data-touched="84" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+edited ×1">.</ins>
+
+<ins class="dd" data-d="1" data-a="3" data-au="2" data-rev="84" data-revs="84" data-touched="89" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+edited ×1">Hobbes considers the two resulting ships as illustrating two definitions of &quot;Identity&quot; or samenes</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">s</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,45,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">, form and matter,</ins> <ins class="dd" data-d="6" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,45,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">t</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">ha</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">t are being compared to the original ship</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="90" data-revs="1,6,10,11,84,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">:</ins>
+
+<ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">the ship that maintains the same &quot;</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">f</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">orm&quot; as the original, that which persists through complete replacement of material and</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="90" data-revs="1,6,10,11,84,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">;</ins>
+<ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">the ship made of the same &quot;</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">m</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">atter&quot;</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="86" data-revs="1,6,10,11,84,86" data-touched="98" data-tip="added 14 Feb 2023 by Philoserf (+15 other revisions since 29 Sept 2022) · “light c/e”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">,</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> that which stops being 100</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="89" data-revs="1,6,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6"> percent</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> the same ship when the first part is replaced.
+
+Proposed resolutions
+The Ship of Theseus paradox can be though</ins><ins class="dd" data-d="6" data-a="5" data-au="1" data-rev="85" data-revs="1,6,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">t</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> of as an example of a puzzle of material constitution</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="98" data-revs="1,6,10,11,84,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">—</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">that is, a problem with determining the relationship between an object and the mat</ins><ins class="dd" data-d="4" data-a="5" data-au="7" data-rev="11" data-revs="1,6,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) (+15 other revisions since 29 Dec 2006) · “→Other examples: Related concepts”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×4">erial</ins> <ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="89" data-revs="1,6,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">of which</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> i</ins><ins class="dd" data-d="6" data-a="5" data-au="1" data-rev="85" data-revs="1,6,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">t</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> is made.
+
+Constitution is not identity
+According to the Stanford Encyclopedia of Philosophy, the most popular solution is to accept the conclusion that the material </ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="89" data-revs="1,6,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">out of which</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> the ship is made is not the same object as the ship, but that the two objects simply occupy the same space at the same time.
+
+Temporal </ins><ins class="dd" data-d="6" data-a="5" data-au="1" data-rev="85" data-revs="1,6,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">p</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">arts
+Another common theory</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="95" data-revs="1,6,10,11,84,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">,</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> put forth by </ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">twentieth</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="98" data-revs="1,6,10,11,84,97,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×7">-</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">century American philosopher </ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">David Lewis, is to divide up all objects i</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">nt</ins><ins class="dd" data-d="6" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,45,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">o</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> three</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="86" data-revs="1,6,10,11,45,86" data-touched="98" data-tip="added 14 Feb 2023 by Philoserf (+15 other revisions since 29 Sept 2022) · “light c/e”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">-</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">dimensional time-slices </ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">which are temporally distinct</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="95" data-revs="1,6,10,11,84,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">. This</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> avoids the issue that the two different ships exist in the same space at one time and a different space at another </ins><ins class="dd" data-d="4" data-a="5" data-au="7" data-rev="11" data-revs="1,6,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) (+15 other revisions since 29 Dec 2006) · “→Other examples: Related concepts”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×4">time</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> by considering the objects to be distinct from each other at all points in tim</ins><ins class="dd" data-d="4" data-a="5" data-au="7" data-rev="11" data-revs="1,6,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) (+15 other revisions since 29 Dec 2006) · “→Other examples: Related concepts”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×4">e.</ins>
+
+<ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">Cognitive </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="67" data-revs="66,67" data-touched="94" data-tip="added 31 May 2019 by 84.246.203.157 (+15 other revisions since 4 Apr 2019) · “→There is no ship:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">s</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">cience
+According to </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="87" data-revs="66,87" data-touched="94" data-tip="added 24 Feb 2023 by Eldomtom2 (+15 other revisions since 14 Feb 2023) · “→In popular culture: grammar”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">other scientists</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">, the </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="71" data-revs="66,71" data-touched="94" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">thought puzzle</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1"> arises because of extreme externalism: the assumption that what is true in our minds </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="94" data-revs="66,94" data-touched="94" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">also hold</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">s true in the world.</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="90" data-revs="66,90" data-touched="94" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2"> Noam</ins> <ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="78" data-revs="66,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C (+15 other revisions since 16 May 2021) · “→History: the Ship of Theseus is not an example of itself”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">Chomsky says that t</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">his is not an unassailable assumption, from the perspective of the natural sciences, because human intuition is often mistaken. Cognitive science would treat this </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="71" data-revs="66,71" data-touched="94" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">thought puzzle</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1"> as the subject of a</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">n investigation of the human mind. Studying this human confusion can reveal much about the brain's operation, but little about the nature of the human-independent external world.
+
+Following on from this observation, a significant strand in </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="78" data-revs="66,76,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C (+15 other revisions since 16 May 2021) · “→History: the Ship of Theseus is not an example of itself”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×3">c</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">ognitive </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="78" data-revs="66,76,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C (+15 other revisions since 16 May 2021) · “→History: the Ship of Theseus is not an example of itself”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×3">s</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">cience would consider </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="92" data-revs="66,76,92" data-touched="94" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×3">the s</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">hip not as a thing, nor even a collection of objectively existing thing</ins> <ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">parts, but rather as an organisational structure that has perceptual continuity.</ins>
+
+<ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">Deflationism
+According to the Stanford Encyclopedia of Philosophy, the </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">d</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">eflationist view is that the facts of the thought experiment are undisputed</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1"> the only dispute is over the meaning of the term &quot;ship&quot; and </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">is </ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">thus merely verbal. American philosopher Hilary Putnam asserts </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">that &quot;t</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">he logical primitives themselves, and in particular the notions of object and existence, have a multitude of different uses rather than one absolute </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">'</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">meaning</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">'.&quot;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1"> This thesis—that there are many meanings for the existential quantifier that are equally natural and equally adequate for describing all the facts—is often referred to as </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">&quot;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">the doctrine of quantifier variance</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">.&quot;</ins>
+
+<ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">Continued identity theory
+This solution (proposed by Kate, Ernest et al</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">.</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">) sees an object as staying the same as long as it continuously </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="91,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">and metaphysically </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">exists under the same identity</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2"> without being</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> fully transformed at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">on</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">e time. For instance, a house</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2"> that has its</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> front wall destroyed and replaced at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">Y</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">ear </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">One</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">, the ceiling replaced at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">Y</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">ear </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">Two</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">, </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">and so on,</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> until every part of the house has been replaced will still be </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">understood as</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> the same</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2"> house</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">. However, if every wall, the floor</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">,</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> and the </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">roof</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> are destroyed and replaced at the same time, it will be </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="91,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">regarded</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> as a new house.</ins>
+
+<ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×1">Alternative forms</ins>
+<ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">In </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">Western countries</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">, several independent tales and stories feature knives </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="83,85,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">of which</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> the blades and handles </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="83,85,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">had been </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">replaced several times but are still used and represent the same knife. France has Jeannot's knife</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">;</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> Spain uses Jeannot's knife as a proverb, though it is referred to simply as &quot;the family knife&quot;</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">;</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> and Hungary has &quot;Lajos Kossuth's pocket knife&quot;. Several variants or alternative statements of the underlying problem are known, including the grandfather's axe, where an old </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="90" data-revs="83,85,90" data-touched="99" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">axe </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">has had both its head and its handle replaced, leaving no original components.</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> In an American version, a museum claims to own George Washington's axe, but the axe's handle has been replaced three times and its head twice.</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> In Britain, the term Trigger's broom is sometimes used, in reference to a line from the sitcom Only Fools and Horses in which road sweeper Trigger says that he has used the same broom for 20 years, with it only needing 17 new heads and 14 new handles in that time.</ins>
+
+<ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="93" data-revs="83,85,93" data-touched="99" data-tip="added 3 May 2024 by Notxabee (+15 other revisions since 29 Mar 2024) · “It is also known as &quot;Theseus's Paradox&quot;.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">The French critic and essayist Roland Barthes refers at least twice to a ship that is entirely rebuilt, in the preface to his Essais Critiques (1971) and later in his Roland Barthes par Roland Barthes (1975); in the latter, the persistence of the form of the ship is seen as a key structuralist principle. He calls this ship the Argo, on which Theseus was said to have sailed with Jason; he may have confused the Argo (referred to in passing in Plutarch's Theseus at 19.4) with the ship that sailed from Crete (Theseus, 23.1)</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="91" data-revs="83,85,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">.</ins>
+
+<ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">The ancient Buddhist text Da zhidu lun contains a similar philosophical puzzle: a story of a traveller who encountered two demons in the night. As one demon ripped off all parts of the traveler's body one by one, the other demon replaced them with those of a corpse, and the traveller was confused about who he was.
+
+Examples
+The wooden-hulled frigate USS Constitution is referenced by the museum's official website as an example of the paradox, with it being thought that as little as ten to twenty pe</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="92" data-revs="83,85,92" data-touched="99" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">rce</ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="83,85,92,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">nt</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="92" data-revs="83,85,92" data-touched="99" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> of the </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">1797 ship is original. Charles Joseph Bonaparte wrote in a 1905 Navy report that in his view it was &quot;not the vessel with which Hull [had captured] Guerriere.&quot; The Antique and Classic Boat Society define a preserved boat as &quot;containing at least 60% of their original deck and topsides material&quot;, but in the case of the Constitution they conclude that it &quot;has essentially none of its original wood but we believe no one would consider it a replica.  It is Old Ironsides.&quot;
+
+In Japan, the Ise Grand Shrine is rebuilt every twenty years with entirely &quot;new wood&quot;. The continuity over the centuries is considered spiritual and comes from the source of the wood, which is harvested from an adjoining forest that is considered sacred</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="83,85,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">.</ins>
+
+<ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="88" data-revs="83,85,88" data-touched="99" data-tip="added 29 Jul 2023 by Ansh Saxena 7163 (+15 other revisions since 24 Feb 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">See also</ins>
+<ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="89" data-revs="83,89" data-touched="99" data-tip="added 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">Citations
+General and cited r</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×1">eferences
+Further </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">r</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×1">eading
+External links
+S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Theseus&quot; from the University of Washington</ins></article>
+  <aside class="ledger">
+    <h2>Revision ledger · oldest first</h2>
+    <p class="hint">Hover a revision to spotlight what it changed. Dates link to the revision on Wikipedia.</p>
+    <ol class="commits" id="commits">
+<li class="commit" data-rev="0" tabindex="0">
+  <span class="dot m0" title="Oldest sampled revision — everything starts unhighlighted here"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1154003">15 Jul 2003</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="Oldest sampled revision — everything starts unhighlighted here">131.183.73.174 · baseline · 698 chars</span>
+  </span>
+</li>
+<li class="commit" data-rev="1" tabindex="0">
+  <span class="dot m2" title="1,984 chars inserted, 377 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=5893161">16 Jul 2004</a> <span class="subject" title="coherent TOC">coherent TOC</span></span>
+    <span class="c-meta" title="1,984 chars inserted, 377 deleted vs the previous sampled revision"><i class="au-dot" data-au="4"></i>Vargenau · +1,984 −377</span>
+  </span>
+</li>
+<li class="commit" data-rev="2" tabindex="0">
+  <span class="dot m2" title="1,975 chars inserted, 6 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=12772359">15 Apr 2005</a> <span class="subject" title="→Automobiles:">→Automobiles:</span></span>
+    <span class="c-meta" title="1,975 chars inserted, 6 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Sfoskett · +1,975 −6 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="3" tabindex="0">
+  <span class="dot m2" title="1,918 chars inserted, 344 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=20693167">10 Aug 2005</a> <span class="subject" title="→Human identity:">→Human identity:</span></span>
+    <span class="c-meta" title="1,918 chars inserted, 344 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">172.215.195.179 · +1,918 −344 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="4" tabindex="0">
+  <span class="dot m2" title="2,248 chars inserted, 1,415 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=29442607">28 Nov 2005</a> <span class="subject" title="→Human identity: objectify speculation and remove complete misunderstanding of &quot;cogito ergo sum&quot;">→Human identity: objectify speculation and remove complete misunderstanding of &quot;cogito ergo sum&quot;</span></span>
+    <span class="c-meta" title="2,248 chars inserted, 1,415 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Tverbeek · +2,248 −1,415 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="5" tabindex="0">
+  <span class="dot m2" title="1,814 chars inserted, 307 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=35914699">20 Jan 2006</a> <span class="subject" title="→Rock groups:">→Rock groups:</span></span>
+    <span class="c-meta" title="1,814 chars inserted, 307 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Djrobgordon · +1,814 −307 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="6" tabindex="0">
+  <span class="dot m4" title="5,774 chars inserted, 3,179 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=47208077">6 Apr 2006</a> <span class="subject" title="→Ghost in the Shell:">→Ghost in the Shell:</span></span>
+    <span class="c-meta" title="5,774 chars inserted, 3,179 deleted vs the previous sampled revision"><i class="au-dot" data-au="5"></i>209.6.186.139 · +5,774 −3,179</span>
+  </span>
+</li>
+<li class="commit" data-rev="7" tabindex="0">
+  <span class="dot m4" title="1,199 chars inserted, 7,504 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=68156418">7 Aug 2006</a> <span class="subject" title="→In popular culture:">→In popular culture:</span></span>
+    <span class="c-meta" title="1,199 chars inserted, 7,504 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">75.2.2.84 · +1,199 −7,504 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="8" tabindex="0">
+  <span class="dot m2" title="1,830 chars inserted, 57 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=75289916">12 Sept 2006</a> <span class="subject" title="→Cultural differences:">→Cultural differences:</span></span>
+    <span class="c-meta" title="1,830 chars inserted, 57 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">24.199.205.252 · +1,830 −57 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="9" tabindex="0">
+  <span class="dot m2" title="2,787 chars inserted, 300 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=91032550">29 Nov 2006</a> <span class="subject" title="→Stephen Law's Idea: fixed this incorrect capital">→Stephen Law's Idea: fixed this incorrect capital</span></span>
+    <span class="c-meta" title="2,787 chars inserted, 300 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Michael Hardy · +2,787 −300 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="10" tabindex="0">
+  <span class="dot m4" title="3,467 chars inserted, 6,843 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=97212589">29 Dec 2006</a> <span class="subject" title="→In popular culture:">→In popular culture:</span></span>
+    <span class="c-meta" title="3,467 chars inserted, 6,843 deleted vs the previous sampled revision"><i class="au-dot" data-au="6"></i>JETM · +3,467 −6,843</span>
+  </span>
+</li>
+<li class="commit" data-rev="11" tabindex="0">
+  <span class="dot m2" title="3,189 chars inserted, 208 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=114194779">11 Mar 2007</a> <span class="subject" title="→Other examples: Related concepts">→Other examples: Related concepts</span></span>
+    <span class="c-meta" title="3,189 chars inserted, 208 deleted vs the previous sampled revision"><i class="au-dot" data-au="7"></i>Root4(one) · +3,189 −208</span>
+  </span>
+</li>
+<li class="commit" data-rev="12" tabindex="0">
+  <span class="dot m2" title="1,408 chars inserted, 32 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=117521320">24 Mar 2007</a> <span class="subject" title="Remove the &quot;merge from&quot; notice, this has been done.">Remove the &quot;merge from&quot; notice, this has been done.</span></span>
+    <span class="c-meta" title="1,408 chars inserted, 32 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">62.235.159.8 · +1,408 −32 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="13" tabindex="0">
+  <span class="dot m2" title="1,482 chars inserted, 304 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=130834040">14 May 2007</a> <span class="subject" title="→Four dimensionalism:">→Four dimensionalism:</span></span>
+    <span class="c-meta" title="1,482 chars inserted, 304 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">128.91.41.72 · +1,482 −304 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="14" tabindex="0">
+  <span class="dot m1" title="404 chars inserted, 446 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=138910090">18 Jun 2007</a> <span class="subject" title="Fixing links to disambiguation pages using AWB">Fixing links to disambiguation pages using AWB</span></span>
+    <span class="c-meta" title="404 chars inserted, 446 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Editor at Large · +404 −446 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="15" tabindex="0">
+  <span class="dot m2" title="2,323 chars inserted, 59 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=158907570">19 Sept 2007</a> <span class="subject" title="→Metaphysics of quality:">→Metaphysics of quality:</span></span>
+    <span class="c-meta" title="2,323 chars inserted, 59 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">81.6.250.44 · +2,323 −59 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="16" tabindex="0">
+  <span class="dot m2" title="2,610 chars inserted, 754 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=172232695">18 Nov 2007</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="2,610 chars inserted, 754 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">65.110.26.183 · +2,610 −754 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="17" tabindex="0">
+  <span class="dot m2" title="1,234 chars inserted, 612 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=190470705">10 Feb 2008</a> <span class="subject" title="→Aristotle's causes:">→Aristotle's causes:</span></span>
+    <span class="c-meta" title="1,234 chars inserted, 612 deleted vs the previous sampled revision">Bless sins · +1,234 −612</span>
+  </span>
+</li>
+<li class="commit" data-rev="18" tabindex="0">
+  <span class="dot m2" title="476 chars inserted, 3,331 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=206398658">18 Apr 2008</a> <span class="subject" title="pt:">pt:</span></span>
+    <span class="c-meta" title="476 chars inserted, 3,331 deleted vs the previous sampled revision">Albmont · +476 −3,331</span>
+  </span>
+</li>
+<li class="commit" data-rev="19" tabindex="0">
+  <span class="dot m1" title="289 chars inserted, 361 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=224094393">7 Jul 2008</a> <span class="subject" title="in popular culter: spelling and link">in popular culter: spelling and link</span></span>
+    <span class="c-meta" title="289 chars inserted, 361 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Berjangles · +289 −361 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="20" tabindex="0">
+  <span class="dot m2" title="1,613 chars inserted, 2,104 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=240255383">22 Sept 2008</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="1,613 chars inserted, 2,104 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">209.47.202.9 · +1,613 −2,104 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="21" tabindex="0">
+  <span class="dot m2" title="1,497 chars inserted, 205 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=249286965">2 Nov 2008</a> <span class="subject" title="→In popular culture: &quot;Trigger's broom&quot; is now common UK usage">→In popular culture: &quot;Trigger's broom&quot; is now common UK usage</span></span>
+    <span class="c-meta" title="1,497 chars inserted, 205 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">213.162.113.17 · +1,497 −205 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="22" tabindex="0">
+  <span class="dot m2" title="1,753 chars inserted, 554 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=266952898">28 Jan 2009</a> <span class="subject" title="→George Washington's axe:">→George Washington's axe:</span></span>
+    <span class="c-meta" title="1,753 chars inserted, 554 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">AnonMoos · +1,753 −554 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="23" tabindex="0">
+  <span class="dot m1" title="194 chars inserted, 6 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=278810608">21 Mar 2009</a> <span class="subject" title="→Other examples: named hurricanes alternate gender">→Other examples: named hurricanes alternate gender</span></span>
+    <span class="c-meta" title="194 chars inserted, 6 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Ruakh · +194 −6 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="24" tabindex="0">
+  <span class="dot m1" title="59 chars inserted, 629 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=293982280">2 Jun 2009</a> <span class="subject" title="→Four dimensionalism: tone">→Four dimensionalism: tone</span></span>
+    <span class="c-meta" title="59 chars inserted, 629 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Cybercobra · +59 −629 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="25" tabindex="0">
+  <span class="dot m2" title="1,006 chars inserted, 37 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=313432118">12 Sept 2009</a> <span class="subject" title="cut links from def">cut links from def</span></span>
+    <span class="c-meta" title="1,006 chars inserted, 37 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Oleg Alexandrov · +1,006 −37 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="26" tabindex="0">
+  <span class="dot m2" title="1,126 chars inserted, 230 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=320357049">17 Oct 2009</a> <span class="subject" title="→Greek legend:">→Greek legend:</span></span>
+    <span class="c-meta" title="1,126 chars inserted, 230 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">164.67.71.37 · +1,126 −230 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="27" tabindex="0">
+  <span class="dot m2" title="703 chars inserted, 383 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=334645470">29 Dec 2009</a> <span class="subject" title="→In popular culture:">→In popular culture:</span></span>
+    <span class="c-meta" title="703 chars inserted, 383 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">92.16.102.134 · +703 −383 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="28" tabindex="0">
+  <span class="dot m2" title="1,407 chars inserted, 923 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=348366411">7 Mar 2010</a> <span class="subject" title="→Plato's Carriage: corrected use of the word 'original'">→Plato's Carriage: corrected use of the word 'original'</span></span>
+    <span class="c-meta" title="1,407 chars inserted, 923 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Ericwag · +1,407 −923 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="29" tabindex="0">
+  <span class="dot m2" title="1,275 chars inserted, 1,137 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=366888037">8 Jun 2010</a> <span class="subject" title="→Greek legend: Ship of Theseus">→Greek legend: Ship of Theseus</span></span>
+    <span class="c-meta" title="1,275 chars inserted, 1,137 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">220.237.138.226 · +1,275 −1,137 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="30" tabindex="0">
+  <span class="dot m1" title="597 chars inserted, 2 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=377430520">6 Aug 2010</a> <span class="subject" title="→In popular culture: gram">→In popular culture: gram</span></span>
+    <span class="c-meta" title="597 chars inserted, 2 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Cybercobra · +597 −2 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="31" tabindex="0">
+  <span class="dot m2" title="822 chars inserted, 385 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=397743159">19 Nov 2010</a> <span class="subject" title="→In popular culture:">→In popular culture:</span></span>
+    <span class="c-meta" title="822 chars inserted, 385 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">131.96.47.17 · +822 −385 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="32" tabindex="0">
+  <span class="dot m2" title="1,174 chars inserted, 134 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=409019427">20 Jan 2011</a> <span class="subject" title="→In popular culture: minor edit: corrected spelling of &quot;series&quot; in star trek item in this list.">→In popular culture: minor edit: corrected spelling of &quot;series&quot; in star trek item in this list.</span></span>
+    <span class="c-meta" title="1,174 chars inserted, 134 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">209.203.86.33 · +1,174 −134 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="33" tabindex="0">
+  <span class="dot m1" title="597 chars inserted, 199 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=424707085">18 Apr 2011</a> <span class="subject" title="→Buddhism: One more time">→Buddhism: One more time</span></span>
+    <span class="c-meta" title="597 chars inserted, 199 deleted vs the previous sampled revision">198.190.216.43 · +597 −199</span>
+  </span>
+</li>
+<li class="commit" data-rev="34" tabindex="0">
+  <span class="dot m2" title="548 chars inserted, 2,273 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=438253885">7 Jul 2011</a> <span class="subject" title="→In popular culture: It's not a twist on the paradox, it is the paradox.">→In popular culture: It's not a twist on the paradox, it is the paradox.</span></span>
+    <span class="c-meta" title="548 chars inserted, 2,273 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Magic9mushroom · +548 −2,273 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="35" tabindex="0">
+  <span class="dot m5" title="12,287 chars inserted, 11,862 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=447046384">27 Aug 2011</a> <span class="subject" title="→Modern examples:">→Modern examples:</span></span>
+    <span class="c-meta" title="12,287 chars inserted, 11,862 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Life in General · +12,287 −11,862 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="36" tabindex="0">
+  <span class="dot m2" title="1,385 chars inserted, 1,466 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=456340314">19 Oct 2011</a> <span class="subject" title="→Music ensembles:">→Music ensembles:</span></span>
+    <span class="c-meta" title="1,385 chars inserted, 1,466 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">209.112.196.8 · +1,385 −1,466 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="37" tabindex="0">
+  <span class="dot m2" title="752 chars inserted, 656 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=478256784">22 Feb 2012</a> <span class="subject" title="→Sport:">→Sport:</span></span>
+    <span class="c-meta" title="752 chars inserted, 656 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">81.144.159.162 · +752 −656 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="38" tabindex="0">
+  <span class="dot m2" title="792 chars inserted, 201 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=487898825">17 Apr 2012</a> <span class="subject" title="→Music ensembles:">→Music ensembles:</span></span>
+    <span class="c-meta" title="792 chars inserted, 201 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">173.166.136.81 · +792 −201 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="39" tabindex="0">
+  <span class="dot m2" title="294 chars inserted, 1,315 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=498597119">21 Jun 2012</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="294 chars inserted, 1,315 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">14.2.60.249 · +294 −1,315 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="40" tabindex="0">
+  <span class="dot m4" title="9,650 chars inserted, 967 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=509994361">30 Aug 2012</a> <span class="subject" title="→Four-dimensionalism:">→Four-dimensionalism:</span></span>
+    <span class="c-meta" title="9,650 chars inserted, 967 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">117.196.139.72 · +9,650 −967 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="41" tabindex="0">
+  <span class="dot m4" title="1,007 chars inserted, 12,163 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=528065524">14 Dec 2012</a> <span class="subject" title="→Ancient philosophy: ref name added">→Ancient philosophy: ref name added</span></span>
+    <span class="c-meta" title="1,007 chars inserted, 12,163 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Ubcule · +1,007 −12,163 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="42" tabindex="0">
+  <span class="dot m1" title="621 chars inserted, 13 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=531879165">8 Jan 2013</a> <span class="subject" title="→Prosthesis:">→Prosthesis:</span></span>
+    <span class="c-meta" title="621 chars inserted, 13 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">83.134.105.39 · +621 −13 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="43" tabindex="0">
+  <span class="dot m1" title="341 chars inserted, 494 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=540473142">26 Feb 2013</a> <span class="subject" title="→In literature:">→In literature:</span></span>
+    <span class="c-meta" title="341 chars inserted, 494 deleted vs the previous sampled revision">Rob T Firefly · +341 −494</span>
+  </span>
+</li>
+<li class="commit" data-rev="44" tabindex="0">
+  <span class="dot m3" title="19 chars inserted, 6,660 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=554283547">9 May 2013</a> <span class="subject" title="gone">gone</span></span>
+    <span class="c-meta" title="19 chars inserted, 6,660 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">SummerPhD · +19 −6,660 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="45" tabindex="0">
+  <span class="dot m2" title="683 chars inserted, 1,226 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=569940060">24 Aug 2013</a> <span class="subject" title="Formatting citation properly.">Formatting citation properly.</span></span>
+    <span class="c-meta" title="683 chars inserted, 1,226 deleted vs the previous sampled revision">Mobilesworking · +683 −1,226</span>
+  </span>
+</li>
+<li class="commit" data-rev="46" tabindex="0">
+  <span class="dot m1" title="11 chars inserted, 730 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=572401933">10 Sept 2013</a> <span class="subject" title="c/e">c/e</span></span>
+    <span class="c-meta" title="11 chars inserted, 730 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">192.88.168.1 · +11 −730 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="47" tabindex="0">
+  <span class="dot m2" title="1,032 chars inserted, 182 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=586299093">16 Dec 2013</a> <span class="subject" title="→Proposed resolutions: Added section addressing another alternative resolution">→Proposed resolutions: Added section addressing another alternative resolution</span></span>
+    <span class="c-meta" title="1,032 chars inserted, 182 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">151.207.250.51 · +1,032 −182 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="48" tabindex="0">
+  <span class="dot m1" title="259 chars inserted, 8 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=602129455">31 Mar 2014</a> <span class="subject" title="→Modern day: ref">→Modern day: ref</span></span>
+    <span class="c-meta" title="259 chars inserted, 8 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Martarius · +259 −8 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="49" tabindex="0">
+  <span class="dot m2" title="712 chars inserted, 1,284 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=627793720">1 Oct 2014</a> <span class="subject" title="→Modern day:">→Modern day:</span></span>
+    <span class="c-meta" title="712 chars inserted, 1,284 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Audigex · +712 −1,284 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="50" tabindex="0">
+  <span class="dot m2" title="781 chars inserted, 727 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=646059258">7 Feb 2015</a> <span class="subject" title="→Modern day:">→Modern day:</span></span>
+    <span class="c-meta" title="781 chars inserted, 727 deleted vs the previous sampled revision">TangoTizerWolfstone · +781 −727</span>
+  </span>
+</li>
+<li class="commit" data-rev="51" tabindex="0">
+  <span class="dot m3" title="3,286 chars inserted, 756 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=676104461">14 Aug 2015</a> <span class="subject" title="→See also:">→See also:</span></span>
+    <span class="c-meta" title="3,286 chars inserted, 756 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">108.94.155.69 · +3,286 −756 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="52" tabindex="0">
+  <span class="dot m2" title="1,122 chars inserted, 764 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=688201634">30 Oct 2015</a> <span class="subject" title="→In the media: trim/cut minor references and &quot;heavy nod&quot;, edit for tone, copyedit">→In the media: trim/cut minor references and &quot;heavy nod&quot;, edit for tone, copyedit</span></span>
+    <span class="c-meta" title="1,122 chars inserted, 764 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">McGeddon · +1,122 −764 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="53" tabindex="0">
+  <span class="dot m3" title="815 chars inserted, 3,511 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=694384847">8 Dec 2015</a> <span class="subject" title="Minor">Minor</span></span>
+    <span class="c-meta" title="815 chars inserted, 3,511 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">108.221.18.208 · +815 −3,511 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="54" tabindex="0">
+  <span class="dot m1" title="443 chars inserted, 407 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=708299149">4 Mar 2016</a> <span class="subject" title="Added to the article new information.">Added to the article new information.</span></span>
+    <span class="c-meta" title="443 chars inserted, 407 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">BrainyJon · +443 −407 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="55" tabindex="0">
+  <span class="dot m1" title="400 chars inserted, 216 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=730351798">18 Jul 2016</a> <span class="subject" title="→See also:">→See also:</span></span>
+    <span class="c-meta" title="400 chars inserted, 216 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">98.163.100.75 · +400 −216 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="56" tabindex="0">
+  <span class="dot m2" title="622 chars inserted, 832 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=753209739">5 Dec 2016</a> <span class="subject" title="→In Japan: Was located in the wrong section. I merely shifted it to the section for examples.">→In Japan: Was located in the wrong section. I merely shifted it to the section for examples.</span></span>
+    <span class="c-meta" title="622 chars inserted, 832 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">2601:600:C300:27B0:AC93:7C9A:B55F:70FB · +622 −832 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="57" tabindex="0">
+  <span class="dot m2" title="695 chars inserted, 954 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=775882853">17 Apr 2017</a> <span class="subject" title="→Modern variations: GW is a person">→Modern variations: GW is a person</span></span>
+    <span class="c-meta" title="695 chars inserted, 954 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Byziden · +695 −954 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="58" tabindex="0">
+  <span class="dot m2" title="900 chars inserted, 331 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=800664253">14 Sept 2017</a> <span class="subject" title="→Variations of the paradox: Gen'l cleanup">→Variations of the paradox: Gen'l cleanup</span></span>
+    <span class="c-meta" title="900 chars inserted, 331 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Wikiuser100 · +900 −331 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="59" tabindex="0">
+  <span class="dot m2" title="1,143 chars inserted, 454 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=816222952">20 Dec 2017</a> <span class="subject" title="→See also:">→See also:</span></span>
+    <span class="c-meta" title="1,143 chars inserted, 454 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">2601:249:401:4770:A5DC:A027:F7F5:158E · +1,143 −454 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="60" tabindex="0">
+  <span class="dot m2" title="220 chars inserted, 1,029 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=834222746">4 Apr 2018</a> <span class="subject" title="Bot: HTTP→HTTPS (v485)">Bot: HTTP→HTTPS (v485)</span></span>
+    <span class="c-meta" title="220 chars inserted, 1,029 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">KolbertBot · +220 −1,029 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="61" tabindex="0">
+  <span class="dot m3" title="3,752 chars inserted, 4,255 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=842261578">21 May 2018</a> <span class="subject" title="→Modern variations:">→Modern variations:</span></span>
+    <span class="c-meta" title="3,752 chars inserted, 4,255 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">194.80.232.19 · +3,752 −4,255 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="62" tabindex="0">
+  <span class="dot m2" title="1,788 chars inserted, 39 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=843189967">27 May 2018</a> <span class="subject" title="→Applications and Examples:">→Applications and Examples:</span></span>
+    <span class="c-meta" title="1,788 chars inserted, 39 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">46.208.71.14 · +1,788 −39 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="63" tabindex="0">
+  <span class="dot m2" title="957 chars inserted, 593 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=844029451">2 Jun 2018</a> <span class="subject" title="→Applications: i'm not sure what this is supposed to say, but it's uncited nonetheless">→Applications: i'm not sure what this is supposed to say, but it's uncited nonetheless</span></span>
+    <span class="c-meta" title="957 chars inserted, 593 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">ZaneGlaze · +957 −593 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="64" tabindex="0">
+  <span class="dot m2" title="1,193 chars inserted, 447 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=851709314">24 Jul 2018</a> <span class="subject" title="→The thought experiment:">→The thought experiment:</span></span>
+    <span class="c-meta" title="1,193 chars inserted, 447 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">96.41.174.225 · +1,193 −447 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="65" tabindex="0">
+  <span class="dot m2" title="1,010 chars inserted, 779 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=876139531">31 Dec 2018</a> <span class="subject" title="→Proposed resolutions: added a section for The Treachery of Images">→Proposed resolutions: added a section for The Treachery of Images</span></span>
+    <span class="c-meta" title="1,010 chars inserted, 779 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Venture To The Stars · +1,010 −779 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="66" tabindex="0">
+  <span class="dot m2" title="1,449 chars inserted, 26 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=890955850">4 Apr 2019</a> <span class="subject" title="→There is no ship: Really not main article">→There is no ship: Really not main article</span></span>
+    <span class="c-meta" title="1,449 chars inserted, 26 deleted vs the previous sampled revision">Kranix · +1,449 −26</span>
+  </span>
+</li>
+<li class="commit" data-rev="67" tabindex="0">
+  <span class="dot m2" title="1,852 chars inserted, 910 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=899583680">31 May 2019</a> <span class="subject" title="→There is no ship:">→There is no ship:</span></span>
+    <span class="c-meta" title="1,852 chars inserted, 910 deleted vs the previous sampled revision">84.246.203.157 · +1,852 −910</span>
+  </span>
+</li>
+<li class="commit" data-rev="68" tabindex="0">
+  <span class="dot m2" title="525 chars inserted, 584 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=930375313">12 Dec 2019</a> <span class="subject" title="Remove Trigger's Broom, not notable">Remove Trigger's Broom, not notable</span></span>
+    <span class="c-meta" title="525 chars inserted, 584 deleted vs the previous sampled revision">Daask · +525 −584</span>
+  </span>
+</li>
+<li class="commit" data-rev="69" tabindex="0">
+  <span class="dot m3" title="1,133 chars inserted, 7,359 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=950805910">13 Apr 2020</a> <span class="subject" title="rm unsourced">rm unsourced</span></span>
+    <span class="c-meta" title="1,133 chars inserted, 7,359 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">2.248.91.241 · +1,133 −7,359 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="70" tabindex="0">
+  <span class="dot m2" title="1,766 chars inserted, 935 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=969402132">25 Jul 2020</a> <span class="subject" title="no indication of relevance">no indication of relevance</span></span>
+    <span class="c-meta" title="1,766 chars inserted, 935 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Omnipaedista · +1,766 −935 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="71" tabindex="0">
+  <span class="dot m2" title="1,937 chars inserted, 940 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=982487802">8 Oct 2020</a> <span class="subject" title="→Applications:“Paradox” to “thought puzzle”">→Applications:“Paradox” to “thought puzzle”</span></span>
+    <span class="c-meta" title="1,937 chars inserted, 940 deleted vs the previous sampled revision">2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 · +1,937 −940</span>
+  </span>
+</li>
+<li class="commit" data-rev="72" tabindex="0">
+  <span class="dot m1" title="291 chars inserted, 110 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1002966311">26 Jan 2021</a> <span class="subject" title="→Media:">→Media:</span></span>
+    <span class="c-meta" title="291 chars inserted, 110 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">192.40.136.38 · +291 −110 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="73" tabindex="0">
+  <span class="dot m2" title="1,434 chars inserted, 114 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1010463602">5 Mar 2021</a> <span class="subject" title="→Media:Fixed a grammatical issue.">→Media:Fixed a grammatical issue.</span></span>
+    <span class="c-meta" title="1,434 chars inserted, 114 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">2600:387:B:5:0:0:0:5A · +1,434 −114 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="74" tabindex="0">
+  <span class="dot m3" title="324 chars inserted, 4,198 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1010679125">6 Mar 2021</a> <span class="subject" title="Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.">Moved all media examples to the subarticle. Main articles are meant to be concise and succinct, not unsourced fan pages full of trivia about popular culture.</span></span>
+    <span class="c-meta" title="324 chars inserted, 4,198 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Byziden · +324 −4,198 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="75" tabindex="0">
+  <span class="dot m1" title="181 chars inserted, 49 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1011054567">8 Mar 2021</a> <span class="subject" title="removing non-content">removing non-content</span></span>
+    <span class="c-meta" title="181 chars inserted, 49 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Reinyday · +181 −49 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="76" tabindex="0">
+  <span class="dot m2" title="2,993 chars inserted, 376 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1012391130">16 Mar 2021</a> <span class="subject" title="→Media:">→Media:</span></span>
+    <span class="c-meta" title="2,993 chars inserted, 376 deleted vs the previous sampled revision">67.175.224.195 · +2,993 −376</span>
+  </span>
+</li>
+<li class="commit" data-rev="77" tabindex="0">
+  <span class="dot m2" title="1,447 chars inserted, 1,492 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1023476629">16 May 2021</a> <span class="subject" title="→Gradual loss of identity: removed (tagged) statement consisting only of original research">→Gradual loss of identity: removed (tagged) statement consisting only of original research</span></span>
+    <span class="c-meta" title="1,447 chars inserted, 1,492 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Krb19 · +1,447 −1,492 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="78" tabindex="0">
+  <span class="dot m2" title="494 chars inserted, 2,590 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1049319737">11 Oct 2021</a> <span class="subject" title="→History: the Ship of Theseus is not an example of itself">→History: the Ship of Theseus is not an example of itself</span></span>
+    <span class="c-meta" title="494 chars inserted, 2,590 deleted vs the previous sampled revision">2A00:23C8:3484:A601:EC5F:8040:C191:AA7C · +494 −2,590</span>
+  </span>
+</li>
+<li class="commit" data-rev="79" tabindex="0">
+  <span class="dot m1" title="342 chars inserted, 37 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1057351504">27 Nov 2021</a> <span class="subject" title="Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162">Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162</span></span>
+    <span class="c-meta" title="342 chars inserted, 37 deleted vs the previous sampled revision">Citation bot · +342 −37</span>
+  </span>
+</li>
+<li class="commit" data-rev="80" tabindex="0">
+  <span class="dot m2" title="625 chars inserted, 1,651 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1072187770">16 Feb 2022</a> <span class="subject" title="→Applications: Aviation B-52 Stratofortress example">→Applications: Aviation B-52 Stratofortress example</span></span>
+    <span class="c-meta" title="625 chars inserted, 1,651 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Mohawk82 · +625 −1,651 · nothing survives</span>
+  </span>
+</li>
+<li class="commit" data-rev="81" tabindex="0">
+  <span class="dot m2" title="916 chars inserted, 1,156 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1088434941">18 May 2022</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="916 chars inserted, 1,156 deleted vs the previous sampled revision">Thrakkx · +916 −1,156</span>
+  </span>
+</li>
+<li class="commit" data-rev="82" tabindex="0">
+  <span class="dot m3" title="486 chars inserted, 3,623 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1104225315">13 Aug 2022</a> <span class="subject" title="move primary sources to footnotes">move primary sources to footnotes</span></span>
+    <span class="c-meta" title="486 chars inserted, 3,623 deleted vs the previous sampled revision"><i class="au-dot" data-au="0"></i>Carchasm · +486 −3,623</span>
+  </span>
+</li>
+<li class="commit" data-rev="83" tabindex="0">
+  <span class="dot m2" title="1,658 chars inserted, 543 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1112122822">24 Sept 2022</a> <span class="subject" title="→History: add from wasserman explicating problem">→History: add from wasserman explicating problem</span></span>
+    <span class="c-meta" title="1,658 chars inserted, 543 deleted vs the previous sampled revision"><i class="au-dot" data-au="0"></i>Carchasm · +1,658 −543</span>
+  </span>
+</li>
+<li class="commit" data-rev="84" tabindex="0">
+  <span class="dot m2" title="1,992 chars inserted, 1,785 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1112265823">25 Sept 2022</a> <span class="subject" title="Duplicate word removed">Duplicate word removed</span></span>
+    <span class="c-meta" title="1,992 chars inserted, 1,785 deleted vs the previous sampled revision"><i class="au-dot" data-au="2"></i>Arjayay · +1,992 −1,785</span>
+  </span>
+</li>
+<li class="commit" data-rev="85" tabindex="0">
+  <span class="dot m2" title="2,085 chars inserted, 690 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1113087115">29 Sept 2022</a> <span class="subject" title="→Proposed resolutions:">→Proposed resolutions:</span></span>
+    <span class="c-meta" title="2,085 chars inserted, 690 deleted vs the previous sampled revision"><i class="au-dot" data-au="1"></i>JhiXaz · +2,085 −690</span>
+  </span>
+</li>
+<li class="commit" data-rev="86" tabindex="0">
+  <span class="dot m1" title="285 chars inserted, 195 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1139320870">14 Feb 2023</a> <span class="subject" title="light c/e">light c/e</span></span>
+    <span class="c-meta" title="285 chars inserted, 195 deleted vs the previous sampled revision">Philoserf · +285 −195</span>
+  </span>
+</li>
+<li class="commit" data-rev="87" tabindex="0">
+  <span class="dot m1" title="259 chars inserted, 45 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1141320062">24 Feb 2023</a> <span class="subject" title="→In popular culture: grammar">→In popular culture: grammar</span></span>
+    <span class="c-meta" title="259 chars inserted, 45 deleted vs the previous sampled revision">Eldomtom2 · +259 −45</span>
+  </span>
+</li>
+<li class="commit" data-rev="88" tabindex="0">
+  <span class="dot m1" title="66 chars inserted, 655 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1167698587">29 Jul 2023</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="66 chars inserted, 655 deleted vs the previous sampled revision">Ansh Saxena 7163 · +66 −655</span>
+  </span>
+</li>
+<li class="commit" data-rev="89" tabindex="0">
+  <span class="dot m1" title="485 chars inserted, 44 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1183240524">3 Nov 2023</a> <span class="subject" title="Cleaned up references and other matters.">Cleaned up references and other matters.</span></span>
+    <span class="c-meta" title="485 chars inserted, 44 deleted vs the previous sampled revision">DocWatson42 · +485 −44</span>
+  </span>
+</li>
+<li class="commit" data-rev="90" tabindex="0">
+  <span class="dot m1" title="715 chars inserted, 45 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1190410526">17 Dec 2023</a> <span class="subject" title="→Constitution is not identity: - italics">→Constitution is not identity: - italics</span></span>
+    <span class="c-meta" title="715 chars inserted, 45 deleted vs the previous sampled revision">Ser Amantio di Nicolao · +715 −45</span>
+  </span>
+</li>
+<li class="commit" data-rev="91" tabindex="0">
+  <span class="dot m2" title="1,158 chars inserted, 73 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1194889198">11 Jan 2024</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="1,158 chars inserted, 73 deleted vs the previous sampled revision">SpinoAce · +1,158 −73</span>
+  </span>
+</li>
+<li class="commit" data-rev="92" tabindex="0">
+  <span class="dot m2" title="1,167 chars inserted, 532 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1216241292">29 Mar 2024</a> <span class="subject" title="→Alternative forms: rm graf not directly related to topic">→Alternative forms: rm graf not directly related to topic</span></span>
+    <span class="c-meta" title="1,167 chars inserted, 532 deleted vs the previous sampled revision">Alarob · +1,167 −532</span>
+  </span>
+</li>
+<li class="commit" data-rev="93" tabindex="0">
+  <span class="dot m2" title="559 chars inserted, 2,239 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1222058362">3 May 2024</a> <span class="subject" title="It is also known as &quot;Theseus's Paradox&quot;.">It is also known as &quot;Theseus's Paradox&quot;.</span></span>
+    <span class="c-meta" title="559 chars inserted, 2,239 deleted vs the previous sampled revision">Notxabee · +559 −2,239</span>
+  </span>
+</li>
+<li class="commit" data-rev="94" tabindex="0">
+  <span class="dot m1" title="447 chars inserted, 46 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1242072552">24 Aug 2024</a> <span class="subject" title="→Continued identity theory:">→Continued identity theory:</span></span>
+    <span class="c-meta" title="447 chars inserted, 46 deleted vs the previous sampled revision">74.143.20.235 · +447 −46</span>
+  </span>
+</li>
+<li class="commit" data-rev="95" tabindex="0">
+  <span class="dot m1" title="214 chars inserted, 583 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1273103067">31 Jan 2025</a> <span class="subject" title="remove &quot;see also&quot; entries that are unrelated to this topic">remove &quot;see also&quot; entries that are unrelated to this topic</span></span>
+    <span class="c-meta" title="214 chars inserted, 583 deleted vs the previous sampled revision">CodeTalker · +214 −583</span>
+  </span>
+</li>
+<li class="commit" data-rev="96" tabindex="0">
+  <span class="dot m1" title="390 chars inserted, 54 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1310140736">7 Sept 2025</a> <span class="subject" title="(no edit summary)">(no edit summary)</span></span>
+    <span class="c-meta" title="390 chars inserted, 54 deleted vs the previous sampled revision">Pepelepe1234 · +390 −54</span>
+  </span>
+</li>
+<li class="commit" data-rev="97" tabindex="0">
+  <span class="dot m1" title="258 chars inserted, 457 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1318698250">25 Oct 2025</a> <span class="subject" title="→Temporal parts:Clarity.">→Temporal parts:Clarity.</span></span>
+    <span class="c-meta" title="258 chars inserted, 457 deleted vs the previous sampled revision">2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · +258 −457</span>
+  </span>
+</li>
+<li class="commit" data-rev="98" tabindex="0">
+  <span class="dot m1" title="451 chars inserted, 177 deleted vs the previous sampled revision"></span>
+  <span class="c-body">
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1328228200">18 Dec 2025</a> <span class="subject" title="Minor grammatical and typographical corrections">Minor grammatical and typographical corrections</span></span>
+    <span class="c-meta" title="451 chars inserted, 177 deleted vs the previous sampled revision">Woolfy123 · +451 −177</span>
+  </span>
+</li>
+<li class="commit is-revert" data-rev="99" tabindex="0">
+  <span class="dot m2" title="1,404 chars inserted, 745 deleted vs the previous sampled revision This revision is flagged as a revert/rollback; its content matches an earlier revision byte-for-byte, so the document credits ~2026-38176-45’s 3 Jul 2026 edit instead of this one."></span>
+  <span class="c-body">
+    <span class="c-top"><span class="revert-glyph" aria-hidden="true" title="Revert/rollback/undo">↩</span> <a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1362457739">4 Jul 2026</a> <span class="subject" title="Interceptor: Reverting non-constructive edits by ~2026-38064-92">Interceptor: Reverting non-constructive edits by ~2026-38064-92</span></span>
+    <span class="c-meta" title="1,404 chars inserted, 745 deleted vs the previous sampled revision This revision is flagged as a revert/rollback; its content matches an earlier revision byte-for-byte, so the document credits ~2026-38176-45’s 3 Jul 2026 edit instead of this one.">VanFinda · +1,404 −745 · ↩ revert — text credited to ~2026-38176-45’s 3 Jul 2026 revision</span>
+  </span>
+</li>
+    </ol>
+  </aside>
+</main>
+<footer class="report">
+  Generated by <code>deep-diffs-wiki</code> from the live MediaWiki API. Repeatedly edited
+  regions glow hotter — a heatmap of cumulative editorial activity; the Authors lens tints
+  each region by who introduced its wording. Technique from Ross Shannon, Aaron Quigley
+  &amp; Paddy Nixon, <a href="https://rossshannon.com/publications/softcopies/Shannon2010DeepDiffs.pdf">&ldquo;Deep
+  Diffs: Visually Exploring the History of a Document&rdquo;</a> (AVI&nbsp;2010) — Wikipedia
+  edit histories were the paper&rsquo;s original motivating corpus.
+</footer>
+</div>
+<div id="tip" role="tooltip"></div>
+<script>
+(function () {
+  var root = document.documentElement;
+  document.querySelectorAll('.toggle button').forEach(function (btn) {
+    btn.addEventListener('click', function () { root.dataset.mode = btn.dataset.set; });
+  });
+
+  var tip = document.getElementById('tip');
+  var doc = document.getElementById('doc');
+  doc.addEventListener('mouseover', function (e) {
+    var el = e.target.closest('ins.dd');
+    if (!el || !el.dataset.tip) return;
+    tip.textContent = el.dataset.tip;
+    tip.classList.add('show');
+  });
+  doc.addEventListener('mousemove', function (e) {
+    if (!tip.classList.contains('show')) return;
+    var x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 12);
+    var y = e.clientY + 18;
+    if (y + tip.offsetHeight > window.innerHeight - 8) y = e.clientY - tip.offsetHeight - 10;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  });
+  doc.addEventListener('mouseout', function (e) {
+    if (!e.target.closest || !e.target.closest('ins.dd')) return;
+    tip.classList.remove('show');
+  });
+
+  // Hovering a ledger row spotlights the text that revision introduced or reworked.
+  var segs = Array.prototype.slice.call(doc.querySelectorAll('ins.dd'));
+  function focusRev(rev) {
+    var any = false;
+    segs.forEach(function (s) {
+      var hit = (',' + s.dataset.revs + ',').indexOf(',' + rev + ',') !== -1 ||
+                s.dataset.touched === String(rev);
+      s.classList.toggle('hit', hit);
+      any = any || hit;
+    });
+    doc.classList.toggle('focus', any);
+  }
+  function clearFocus() {
+    segs.forEach(function (s) { s.classList.remove('hit'); });
+    doc.classList.remove('focus');
+  }
+  document.querySelectorAll('li.commit').forEach(function (row) {
+    row.addEventListener('mouseenter', function () { focusRev(row.dataset.rev); });
+    row.addEventListener('mouseleave', clearFocus);
+    row.addEventListener('focus', function () { focusRev(row.dataset.rev); });
+    row.addEventListener('blur', clearFocus);
+  });
+})();
+</script>
+</body>
+</html>

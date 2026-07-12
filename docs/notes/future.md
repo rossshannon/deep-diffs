@@ -1,0 +1,5 @@
+- [FUTURE-DIRECTIONS.md](../FUTURE-DIRECTIONS.md) maps where Deep Diffs goes in 2026: the 2010 technique matters more now that documents are collaborative-by-default and flooded with AI-generated text.
+- Nearest-term engineering: ProseMirror/TipTap and CodeMirror decoration plugins (editors already implement our marker transform), CRDT-native markers from Yjs/Automerge histories (exact provenance, no diff ambiguity), block-identity tracking to survive moves, and an incremental session API with heat decay.
+- The big bet: deep diffs as a provenance lens for AI co-writing — heat marks what the human actually finessed, cold spans mark accepted-verbatim machine text, and inverse-heat ordering prioritizes review.
+- New interactions: recency embers, collaboration lens, draft archaeology replay, git churn reports (in-flight in demos/), plus proposed semantic deep diffs via embeddings, heat-guided "what's unsettled" summaries, and fork-aware deep diffs.
+- The 2010 note shipped no evaluation; the essay restates its claims as four testable hypotheses and ends with a 90-day plan culminating in a live AI co-writing demo and a pilot study.

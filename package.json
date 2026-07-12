@@ -1,11 +1,15 @@
 {
   "name": "@rossshannon/deep-diffs",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Visualise cumulative changes across multiple text revisions with intensity-based highlighting",
   "type": "module",
   "main": "dist/deep-diff.cjs",
   "module": "dist/deep-diff.js",
   "types": "dist/deep-diff.d.ts",
+  "bin": {
+    "deep-diffs-git": "bin/deep-diffs-git.js",
+    "deep-diffs-wiki": "bin/deep-diffs-wiki.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/deep-diff.js",
@@ -14,13 +18,14 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "rollup -c",
-    "test": "node --test 'test/*.test.js'",
+    "test": "node --test",
     "typecheck": "tsc --noEmit --strict --moduleResolution node --module ESNext --target ESNext src/deep-diff.d.ts",
     "precommit": "npm test && npm run build && npm run typecheck",
     "prepublishOnly": "npm run build",
