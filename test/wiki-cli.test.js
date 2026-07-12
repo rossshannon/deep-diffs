@@ -32,6 +32,11 @@ import {
   renderLedger,
   collapseReverts,
   ageBucket,
+  isRevertFlagged,
+  pickSamplePoints,
+  findRestoredAttribution,
+  attributionFor,
+  formatAttribution,
 } from '../bin/deep-diffs-wiki.js';
 
 const CLI_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/deep-diffs-wiki.js');
@@ -345,6 +350,247 @@ describe('collapseReverts', () => {
     assert.deepStrictEqual(out, revs);
     assert.strictEqual(collapsedByCycle, 0);
     assert.strictEqual(droppedByTag, 0);
+  });
+});
+
+// ============================================================================
+// isRevertFlagged — the janitorial-edit detector behind sample-point
+// skipping and honest attribution
+// ============================================================================
+
+describe('isRevertFlagged', () => {
+  it('flags mw-undo, mw-rollback and mw-manual-revert tags', () => {
+    for (const tag of ['mw-undo', 'mw-rollback', 'mw-manual-revert']) {
+      assert.strictEqual(isRevertFlagged({ tags: [tag], comment: '' }), true, tag);
+    }
+  });
+
+  it('does not flag unrelated tags', () => {
+    assert.strictEqual(isRevertFlagged({ tags: ['wikieditor', 'mobile edit'], comment: 'clarified wording' }), false);
+  });
+
+  it('flags via comment heuristic when no revert tag is present (manual revert, no tooling)', () => {
+    assert.strictEqual(isRevertFlagged({ tags: [], comment: 'Reverted good faith edits by 1.2.3.4' }), true);
+    assert.strictEqual(isRevertFlagged({ tags: [], comment: 'Undid revision 12345 by Someone' }), true);
+    assert.strictEqual(isRevertFlagged({ tags: [], comment: 'rv unexplained blanking' }), true);
+    assert.strictEqual(isRevertFlagged({ tags: [], comment: 'rollback vandalism' }), true);
+  });
+
+  it('is case-insensitive in the comment heuristic', () => {
+    assert.strictEqual(isRevertFlagged({ tags: [], comment: 'REVERTED vandalism' }), true);
+  });
+
+  it('does not flag an edit summary with no revert-shaped wording', () => {
+    assert.strictEqual(isRevertFlagged({ tags: [], comment: 'expanded the lede with a source' }), false);
+  });
+
+  it('documented false-positive tolerance: "undo" matches as a bare prefix, so unrelated words containing it also flag', () => {
+    // Accepted tradeoff (see the comment above REVERT_COMMENT_RE in the
+    // source): this only ever affects display, never which text survives.
+    assert.strictEqual(isRevertFlagged({ tags: [], comment: 'clarified an undocumented edge case' }), true);
+  });
+
+  it('a null (suppressed) comment cannot trigger the comment heuristic, only tags', () => {
+    assert.strictEqual(isRevertFlagged({ tags: [], comment: null }), false);
+    assert.strictEqual(isRevertFlagged({ tags: ['mw-rollback'], comment: null }), true);
+  });
+
+  it('does not throw on missing tags/comment fields', () => {
+    assert.doesNotThrow(() => isRevertFlagged({}));
+    assert.strictEqual(isRevertFlagged({}), false);
+  });
+});
+
+// ============================================================================
+// pickSamplePoints — revert-aware sample selection, run in place of
+// sampleEvenly on the collapsed revision timeline
+// ============================================================================
+
+describe('pickSamplePoints', () => {
+  const flaggedByTag = (r) => Array.isArray(r.tags) && r.tags.includes('REVERT');
+  const mk = (n, revertIdx = []) =>
+    Array.from({ length: n }, (_, i) => ({ revid: i, tags: revertIdx.includes(i) ? ['REVERT'] : [] }));
+
+  it('matches sampleEvenly\'s picks exactly when nothing is revert-flagged', () => {
+    const revs = mk(20);
+    const points = pickSamplePoints(revs, 5, flaggedByTag);
+    const viaSampleEvenly = sampleEvenly(revs, 5);
+    assert.deepStrictEqual(points.map((p) => p.rev), viaSampleEvenly);
+  });
+
+  it('substitutes a revert-flagged candidate for its nearest preceding non-flagged revision', () => {
+    // sampleIndices(6, 3) picks [0, 3, 5]; flag index 3 only.
+    const revs = mk(6, [3]);
+    const points = pickSamplePoints(revs, 3, flaggedByTag);
+    assert.deepStrictEqual(points.map((p) => p.index), [0, 2, 5]);
+    assert.ok(points.every((p) => !flaggedByTag(p.rev)));
+  });
+
+  it('never substitutes the final candidate — the report must always end on the true current state', () => {
+    // sampleIndices(4, 2) picks [0, 3]; flag index 3, the final revision.
+    const revs = mk(4, [3]);
+    const points = pickSamplePoints(revs, 2, flaggedByTag);
+    assert.deepStrictEqual(points.map((p) => p.index), [0, 3]);
+    assert.strictEqual(flaggedByTag(points[1].rev), true);
+  });
+
+  it('falls back to the original (flagged) candidate when every revision back to the previous pick is flagged', () => {
+    // sampleIndices(8, 3) picks [0, 4, 7]; flag 1..4 so the walk-back from 4
+    // exhausts every predecessor down to (but not past) index 0.
+    const revs = mk(8, [1, 2, 3, 4]);
+    const points = pickSamplePoints(revs, 3, flaggedByTag);
+    assert.deepStrictEqual(points.map((p) => p.index), [0, 4, 7]);
+    assert.strictEqual(flaggedByTag(points[1].rev), true, 'no better substitute existed, so the flagged one survives');
+  });
+
+  it('never produces duplicate or out-of-order indices, with or without reverts scattered through the history', () => {
+    for (let len = 4; len <= 60; len += 7) {
+      for (let max = 2; max <= Math.min(len - 1, 15); max++) {
+        const revs = mk(len, Array.from({ length: len }, (_, i) => i).filter((i) => i % 3 === 1));
+        const points = pickSamplePoints(revs, max, flaggedByTag);
+        const idxs = points.map((p) => p.index);
+        assert.strictEqual(idxs.length, max, `len=${len} max=${max}`);
+        for (let i = 1; i < idxs.length; i++) {
+          assert.ok(idxs[i] > idxs[i - 1], `indices must strictly increase: ${idxs} (len=${len} max=${max})`);
+        }
+        assert.strictEqual(idxs[0], 0);
+        assert.strictEqual(idxs[idxs.length - 1], len - 1);
+      }
+    }
+  });
+
+  it('reports span as the count of revisions absorbed since the previous sample point, inclusive of itself', () => {
+    const revs = mk(6, [3]); // picks become [0, 2, 5], see above
+    const points = pickSamplePoints(revs, 3, flaggedByTag);
+    assert.deepStrictEqual(points.map((p) => p.span), [1, 2, 3]); // 0-(-1)=1, 2-0=2, 5-2=3
+    // Spans always sum to the full length of the timeline.
+    assert.strictEqual(points.reduce((a, p) => a + p.span, 0), 6);
+  });
+
+  it('returns every revision, each with span 1, when there are no more revisions than max', () => {
+    const revs = mk(3);
+    const points = pickSamplePoints(revs, 10, flaggedByTag);
+    assert.strictEqual(points.length, 3);
+    assert.deepStrictEqual(points.map((p) => p.span), [1, 1, 1]);
+  });
+});
+
+// ============================================================================
+// findRestoredAttribution / attributionFor / formatAttribution — honest
+// attribution for a revert-flagged sampled revision
+// ============================================================================
+
+describe('findRestoredAttribution', () => {
+  const collapsedRevs = [
+    { revid: 1, sha1: 'A', user: 'Alice', timestamp: '2020-01-01T00:00:00Z', comment: 'created' },
+    { revid: 2, sha1: 'B', user: 'Bob', timestamp: '2020-02-01T00:00:00Z', comment: 'expanded' },
+    { revid: 3, sha1: 'C', user: 'Carol', timestamp: '2020-03-01T00:00:00Z', comment: 'polished' },
+    { revid: 4, sha1: 'B', user: 'VanFinda', timestamp: '2020-04-01T00:00:00Z', comment: 'Reverted edits by X' },
+  ];
+
+  it('finds the nearest earlier kept revision with a byte-identical sha1 (a full revert)', () => {
+    const found = findRestoredAttribution({ revid: 4, sha1: 'B' }, collapsedRevs);
+    assert.strictEqual(found.revid, 2);
+    assert.strictEqual(found.user, 'Bob');
+  });
+
+  it('returns null when no earlier revision shares this sha1 (a partial revert after intervening edits)', () => {
+    const found = findRestoredAttribution({ revid: 4, sha1: 'Z' }, collapsedRevs);
+    assert.strictEqual(found, null);
+  });
+
+  it('returns null when the revision has no sha1 at all', () => {
+    const found = findRestoredAttribution({ revid: 4, sha1: null }, collapsedRevs);
+    assert.strictEqual(found, null);
+  });
+
+  it('picks the nearest match, not an earlier one, when the sha1 recurs more than once', () => {
+    const revs = [
+      { revid: 1, sha1: 'A', user: 'Alice', timestamp: '2020-01-01T00:00:00Z', comment: '' },
+      { revid: 2, sha1: 'A', user: 'Alice2', timestamp: '2020-01-15T00:00:00Z', comment: '' },
+      { revid: 3, sha1: 'A', user: 'VanFinda', timestamp: '2020-02-01T00:00:00Z', comment: 'revert' },
+    ];
+    const found = findRestoredAttribution({ revid: 3, sha1: 'A' }, revs);
+    assert.strictEqual(found.revid, 2, 'should match the nearest prior occurrence, not revid 1');
+  });
+});
+
+describe('attributionFor', () => {
+  it('passes an ordinary (non-revert-flagged) revision through unchanged', () => {
+    const rev = { user: 'Alice', timestamp: '2020-01-01T00:00:00Z', comment: 'created', revertFlagged: false, restoredFrom: null };
+    assert.deepStrictEqual(attributionFor(rev), {
+      user: 'Alice', timestamp: '2020-01-01T00:00:00Z', comment: 'created', revertLabel: false, restored: false,
+    });
+  });
+
+  it('keeps a revert-flagged revision\'s own metadata but sets revertLabel when there is no byte-identical match (a partial revert)', () => {
+    const rev = { user: 'VanFinda', timestamp: '2026-07-04T00:00:00Z', comment: 'Reverting vandalism', revertFlagged: true, restoredFrom: null };
+    const attr = attributionFor(rev);
+    assert.strictEqual(attr.user, 'VanFinda');
+    assert.strictEqual(attr.revertLabel, true);
+    assert.strictEqual(attr.restored, false);
+  });
+
+  it('credits the earlier restored-from revision\'s metadata when the content is byte-identical to it (the reported bug\'s exact case)', () => {
+    const rev = {
+      user: 'VanFinda',
+      timestamp: '2026-07-04T01:43:57Z',
+      comment: 'Interceptor: Reverting non-constructive edits',
+      revertFlagged: true,
+      restoredFrom: { user: '~2026-38176-45', timestamp: '2026-07-03T12:14:22Z', comment: '' },
+    };
+    const attr = attributionFor(rev);
+    assert.strictEqual(attr.user, '~2026-38176-45');
+    assert.strictEqual(attr.timestamp, '2026-07-03T12:14:22Z');
+    assert.strictEqual(attr.restored, true);
+    assert.strictEqual(attr.revertLabel, false);
+    assert.notStrictEqual(attr.user, 'VanFinda', 'the reverting editor must not be credited with the restored wording');
+  });
+});
+
+describe('formatAttribution', () => {
+  const revisions = [
+    { timestamp: '2020-01-01T00:00:00Z', span: 1 },
+    { timestamp: '2020-06-01T00:00:00Z', span: 1 },
+    { timestamp: '2020-07-01T00:00:00Z', span: 14 },
+  ];
+
+  it('states a restored attribution explicitly, including when the revert happened', () => {
+    const rev = revisions[2];
+    const attr = { user: 'OldAuthor', timestamp: '2020-05-01T00:00:00Z', restored: true, revertLabel: false };
+    const out = formatAttribution(rev, attr, revisions, 2);
+    assert.match(out, /^OldAuthor \(state restored by a revert on 1 Jul 2020\)$/);
+  });
+
+  it('prefixes/suffixes a plain revert-flagged attribution with the ↩ glyph, without inventing a restored date', () => {
+    const rev = revisions[2];
+    const attr = { user: 'VanFinda', timestamp: '2020-07-01T00:00:00Z', restored: false, revertLabel: true };
+    const out = formatAttribution(rev, attr, revisions, 2);
+    assert.match(out, /^↩ VanFinda \(revert\)/);
+  });
+
+  it('adds a composite-step span note when this sample absorbed more than one revision since the previous sample', () => {
+    const rev = revisions[2]; // span 14
+    const attr = { user: 'VanFinda', timestamp: '2020-07-01T00:00:00Z', restored: false, revertLabel: false };
+    const out = formatAttribution(rev, attr, revisions, 2);
+    assert.strictEqual(out, 'VanFinda (+13 other revisions since 1 Jun 2020)');
+  });
+
+  it('uses singular "revision" for exactly one other absorbed revision', () => {
+    const rev = { timestamp: '2020-07-01T00:00:00Z', span: 2 };
+    const revs = [revisions[0], revisions[1], rev];
+    const attr = { user: 'Bob', timestamp: '2020-07-01T00:00:00Z', restored: false, revertLabel: false };
+    const out = formatAttribution(rev, attr, revs, 2);
+    assert.strictEqual(out, 'Bob (+1 other revision since 1 Jun 2020)');
+  });
+
+  it('omits the span note for the baseline (index 0), and for a step with no absorbed span', () => {
+    const attr = { user: 'Alice', timestamp: '2020-01-01T00:00:00Z', restored: false, revertLabel: false };
+    assert.strictEqual(formatAttribution(revisions[0], attr, revisions, 0), 'Alice');
+    assert.strictEqual(
+      formatAttribution(revisions[1], { ...attr, user: 'Bob' }, revisions, 1),
+      'Bob',
+    );
   });
 });
 

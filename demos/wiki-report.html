@@ -167,6 +167,10 @@ a.sha:hover { text-decoration: underline; }
 .subject { font-size: .84rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c-meta { display: flex; align-items: center; font-size: .74rem; color: var(--muted); margin-top: .1rem; min-width: 0; }
 .c-meta .au-dot { width: 8px; height: 8px; }
+.revert-glyph {
+  flex: none; font-size: .74rem; color: var(--muted); line-height: 1;
+}
+li.commit.is-revert .subject { color: var(--muted); font-weight: 500; }
 footer.report {
   border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1rem;
   font-size: .8rem; color: var(--muted);
@@ -191,7 +195,7 @@ footer.report a { color: var(--accent); }
   <p class="eyebrow">Deep diff report · Wikipedia</p>
   <h1 class="file"><a href="https://en.wikipedia.org/wiki/Ship_of_Theseus">Ship of Theseus</a></h1>
   <p class="meta"><b>en.wikipedia.org</b> · 100 of 2,150 revisions (evenly sampled) · 15 Jul 2003 – 4 Jul 2026 · 1,268 contributors across the full history</p>
-  <p class="note">Fetched live from the MediaWiki API on 12 Jul 2026. Wikitext lightly stripped for readability (templates, refs, tables and file links removed — approximate). 562 reverted/vandalised revisions collapsed before sampling (559 matched an earlier revision byte-for-byte, 3 tagged mw-reverted).</p>
+  <p class="note">Fetched live from the MediaWiki API on 12 Jul 2026. Wikitext lightly stripped for readability (templates, refs, tables and file links removed — approximate). 562 reverted/vandalised revisions collapsed before sampling (559 matched an earlier revision byte-for-byte, 3 tagged mw-reverted). 1 sampled revision(s) are themselves reverts/rollbacks with no better non-flagged substitute nearby (marked ↩ in the ledger); their attributed authorship in the document favours the restored earlier revision where the content matches one byte-for-byte.</p>
   <div class="controls">
     <span class="toggle" role="group" aria-label="Heat mode">
       <button type="button" data-set="depth">Edit depth</button>
@@ -200,543 +204,543 @@ footer.report a { color: var(--accent); }
     </span>
     <span class="legend" id="legend-depth">times edited <span class="chip"><ins class="dd lg" data-d="1">×1</ins></span><span class="chip"><ins class="dd lg" data-d="2">×2</ins></span><span class="chip"><ins class="dd lg" data-d="3">×3</ins></span><span class="chip"><ins class="dd lg" data-d="4">×4</ins></span><span class="chip"><ins class="dd lg" data-d="5">×5</ins></span><span class="chip"><ins class="dd lg" data-d="6">×6+</ins></span></span>
     <span class="legend" id="legend-age">age of last edit <span class="chip"><ins class="dd lg" data-a="1">10+ yr</ins></span><span class="chip"><ins class="dd lg" data-a="2">5–10 yr</ins></span><span class="chip"><ins class="dd lg" data-a="3">2–5 yr</ins></span><span class="chip"><ins class="dd lg" data-a="4">1–2 yr</ins></span><span class="chip"><ins class="dd lg" data-a="5">3–12 mo</ins></span><span class="chip"><ins class="dd lg" data-a="6">&lt; 3 mo</ins></span></span>
-    <span class="legend" id="legend-authors"><span class="au-chip"><i class="au-dot" data-au="0"></i>Carchasm</span><span class="au-chip"><i class="au-dot" data-au="1"></i>JhiXaz</span><span class="au-chip"><i class="au-dot" data-au="2"></i>Arjayay</span><span class="au-chip"><i class="au-dot" data-au="3"></i>VanFinda</span><span class="au-chip"><i class="au-dot" data-au="4"></i>Vargenau</span><span class="au-chip"><i class="au-dot" data-au="5"></i>JETM</span><span class="au-chip"><i class="au-dot" data-au="6"></i>Root4(one)</span><span class="au-chip"><i class="au-dot" data-au="7"></i>Kranix</span><span class="au-chip"><i class="au-dot" data-au="x"></i>others</span></span>
+    <span class="legend" id="legend-authors"><span class="au-chip"><i class="au-dot" data-au="0"></i>Carchasm</span><span class="au-chip"><i class="au-dot" data-au="1"></i>JhiXaz</span><span class="au-chip"><i class="au-dot" data-au="2"></i>Arjayay</span><span class="au-chip"><i class="au-dot" data-au="3"></i>~2026-38176-45</span><span class="au-chip"><i class="au-dot" data-au="4"></i>Vargenau</span><span class="au-chip"><i class="au-dot" data-au="5"></i>209.6.186.139</span><span class="au-chip"><i class="au-dot" data-au="6"></i>JETM</span><span class="au-chip"><i class="au-dot" data-au="7"></i>Root4(one)</span><span class="au-chip"><i class="au-dot" data-au="x"></i>others</span></span>
   </div>
 </header>
 <main>
-  <article class="doc" id="doc"><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="81" data-revs="81" data-touched="81" data-tip="added 18 May 2022 by Thrakkx · “(no edit summary)”
-edited ×1">T</ins><ins class="dd" data-d="1" data-a="3" data-au="4" data-rev="1" data-revs="1" data-touched="79" data-tip="added 16 Jul 2004 by Vargenau · “coherent TOC”
-last reworked 27 Nov 2021 by Citation bot · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
-edited ×1">he </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="79" data-revs="1,79" data-touched="79" data-tip="added 27 Nov 2021 by Citation bot · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
-edited ×2">S</ins><ins class="dd" data-d="1" data-a="3" data-au="4" data-rev="1" data-revs="1" data-touched="79" data-tip="added 16 Jul 2004 by Vargenau · “coherent TOC”
-last reworked 27 Nov 2021 by Citation bot · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
-edited ×1">hip of Theseus</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="93" data-revs="93" data-touched="93" data-tip="added 3 May 2024 by Notxabee · “It is also known as &quot;Theseus's Paradox&quot;.”
-edited ×1">, also known as Theseus's Paradox,</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="18" data-revs="17,18" data-touched="98" data-tip="added 18 Apr 2008 by Albmont · “pt:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2"> is a </ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="95" data-revs="17,18,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×3">paradox </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="17,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">and common thought experiment about whether an object (in the most common stating of the paradox, a ship) i</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="17,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">s the same object</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="91" data-revs="17,91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2"> after having</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins · “→Aristotle's causes:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> all </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="50" data-revs="17,50" data-touched="98" data-tip="added 7 Feb 2015 by TangoTizerWolfstone · “→Modern day:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">of </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins · “→Aristotle's causes:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">its </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="82" data-revs="17,82" data-touched="98" data-tip="added 13 Aug 2022 by Carchasm · “move primary sources to footnotes”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">original </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins · “→Aristotle's causes:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">components replaced</ins> <ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="98" data-revs="17,94,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×3">with others </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="17,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">over time</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins · “→Aristotle's causes:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
+  <article class="doc" id="doc"><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="81" data-revs="81" data-touched="81" data-tip="added 18 May 2022 by Thrakkx (+15 other revisions since 16 Feb 2022) · “(no edit summary)”
+edited ×1">T</ins><ins class="dd" data-d="1" data-a="3" data-au="4" data-rev="1" data-revs="1" data-touched="79" data-tip="added 16 Jul 2004 by Vargenau (+15 other revisions since 15 Jul 2003) · “coherent TOC”
+last reworked 27 Nov 2021 by Citation bot (+15 other revisions since 11 Oct 2021) · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
+edited ×1">he </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="79" data-revs="1,79" data-touched="79" data-tip="added 27 Nov 2021 by Citation bot (+15 other revisions since 11 Oct 2021) · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
+edited ×2">S</ins><ins class="dd" data-d="1" data-a="3" data-au="4" data-rev="1" data-revs="1" data-touched="79" data-tip="added 16 Jul 2004 by Vargenau (+15 other revisions since 15 Jul 2003) · “coherent TOC”
+last reworked 27 Nov 2021 by Citation bot (+15 other revisions since 11 Oct 2021) · “Alter: pages. Add: s2cid, issue, volume. Formatted dashes. | Use this bot. Report bugs. | Suggested by Whoop whoop pull up | #UCB_webform 2105/2162”
+edited ×1">hip of Theseus</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="93" data-revs="93" data-touched="93" data-tip="added 3 May 2024 by Notxabee (+15 other revisions since 29 Mar 2024) · “It is also known as &quot;Theseus's Paradox&quot;.”
+edited ×1">, also known as Theseus's Paradox,</ins> <ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="18" data-revs="17,18" data-touched="98" data-tip="added 18 Apr 2008 by Albmont (+15 other revisions since 10 Feb 2008) · “pt:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">is a </ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="95" data-revs="17,18,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×3">paradox </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="17,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">and common thought experiment about whether an object (in the most common stating of the paradox, a ship) i</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="17,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">s the same object</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="91" data-revs="17,91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2"> after having</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins (+16 other revisions since 18 Nov 2007) · “→Aristotle's causes:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> all </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="50" data-revs="17,50" data-touched="98" data-tip="added 7 Feb 2015 by TangoTizerWolfstone (+16 other revisions since 1 Oct 2014) · “→Modern day:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">of </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins (+16 other revisions since 18 Nov 2007) · “→Aristotle's causes:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">its </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="82" data-revs="17,82" data-touched="98" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">original </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins (+16 other revisions since 18 Nov 2007) · “→Aristotle's causes:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">components replaced</ins> <ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="98" data-revs="17,94,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×3">with others </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="17,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">over time</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="17" data-revs="17" data-touched="98" data-tip="added 10 Feb 2008 by Bless sins (+16 other revisions since 18 Nov 2007) · “→Aristotle's causes:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
 edited ×1">.</ins>
 
-<ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="90" data-revs="84,90" data-touched="91" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 11 Jan 2024 by SpinoAce · “(no edit summary)”
-edited ×2">In Greek mythology</ins><ins class="dd" data-d="1" data-a="3" data-au="2" data-rev="84" data-revs="84" data-touched="91" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 11 Jan 2024 by SpinoAce · “(no edit summary)”
-edited ×1">,</ins> <ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">Theseus</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">,</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="68,83,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> the</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> mythical </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="91" data-revs="68,83,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">king of the city</ins> <ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="68,83,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">of </ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">Athens,</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> rescued the children of Athens from King Minos after slaying the </ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">M</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">inotaur and then escaped on</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 · “→In popular culture: grammar”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">to</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> a ship </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 · “→In popular culture: grammar”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">going </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">to Delos. E</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 · “→In popular culture: grammar”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">ach</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> year, the Athenians </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="91" data-revs="68,83,84,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">would </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">commemorate this by taking</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> the </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">craft</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> o</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">n a pilgrimage to Delos to hono</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="91" data-revs="68,83,84,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">u</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">r Apollo. </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">Over time, </ins><ins class="dd" data-d="5" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,97,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×5">various</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4"> of its </ins><ins class="dd" data-d="5" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,97,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×5">timber</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">s rotted and were replaced. </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,84,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">A</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> question was raised by </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,84,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">ancient</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> philosophers: </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">If no pieces of the original </ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="68,83,95,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">remained in</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> the current </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,95,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">ship</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="96" data-revs="68,83,95,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">,</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> was it still the Ship of Theseus? </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,95,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">If it was no longer the same</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">, when had it ceased existing as the original</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> ship?</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> Seventeenth</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,97,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">-</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">century philosopher</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> Thomas Hobbes further question</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,96,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">ed</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+<ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="90" data-revs="84,90" data-touched="91" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+edited ×2">In Greek mythology</ins><ins class="dd" data-d="1" data-a="3" data-au="2" data-rev="84" data-revs="84" data-touched="91" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+edited ×1">,</ins> <ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">Theseus</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">,</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="68,83,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> the</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> mythical </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="91" data-revs="68,83,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">king of the city</ins> <ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="68,83,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">of </ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">Athens,</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> rescued the children of Athens from King Minos after slaying the </ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">M</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">inotaur and then escaped on</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 (+15 other revisions since 14 Feb 2023) · “→In popular culture: grammar”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">to</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> a ship </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 (+15 other revisions since 14 Feb 2023) · “→In popular culture: grammar”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">going </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">to Delos. E</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="87" data-revs="68,83,84,87" data-touched="99" data-tip="added 24 Feb 2023 by Eldomtom2 (+15 other revisions since 14 Feb 2023) · “→In popular culture: grammar”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">ach</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> year, the Athenians </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="91" data-revs="68,83,84,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">would </ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">commemorate this by taking</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> the </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">craft</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> o</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">n a pilgrimage to Delos to hono</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="91" data-revs="68,83,84,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">u</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">r Apollo. </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">Over time, </ins><ins class="dd" data-d="5" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,97,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×5">various</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4"> of its </ins><ins class="dd" data-d="5" data-a="6" data-au="3" data-rev="99" data-revs="68,83,84,97,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×5">timber</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="97" data-revs="68,83,84,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">s rotted and were replaced. </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,84,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">A</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> question was raised by </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,84,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">ancient</ins><ins class="dd" data-d="3" data-a="6" data-au="2" data-rev="84" data-revs="68,83,84" data-touched="99" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> philosophers: </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">If no pieces of the original </ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="68,83,95,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">remained in</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> the current </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,95,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">ship</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="96" data-revs="68,83,95,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">,</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> was it still the Ship of Theseus? </ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,95,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">If it was no longer the same</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="95" data-revs="68,83,95" data-touched="99" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">, when had it ceased existing as the original</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> ship?</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> Seventeenth</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,97,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">-</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="97" data-revs="68,83,97" data-touched="99" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">century philosopher</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> Thomas Hobbes further question</ins><ins class="dd" data-d="4" data-a="6" data-au="x" data-rev="98" data-revs="68,83,96,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">ed</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×3"> how to consider a second ship that had been built entirely from pieces removed from the original.</ins>
 
-<ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">In contemporary philosophy, th</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">e</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> thought experimen</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="82" data-revs="68,82" data-touched="99" data-tip="added 13 Aug 2022 by Carchasm · “move primary sources to footnotes”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">t has applications to</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="81" data-revs="68,81" data-touched="99" data-tip="added 18 May 2022 by Thrakkx · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> the </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="82" data-revs="82" data-touched="96" data-tip="added 13 Aug 2022 by Carchasm · “move primary sources to footnotes”
-last reworked 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-edited ×1">philosophical study of identity</ins><ins class="dd" data-d="2" data-a="5" data-au="2" data-rev="84" data-revs="82,84" data-touched="96" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-edited ×2"> over time</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="82,94" data-touched="96" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-edited ×2">. </ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="96" data-revs="82,94,96" data-touched="96" data-tip="added 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-edited ×3">Within the contemporary philosophy of mind, i</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="82,94" data-touched="96" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-edited ×2">t</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="82" data-revs="82" data-touched="96" data-tip="added 13 Aug 2022 by Carchasm · “move primary sources to footnotes”
-last reworked 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-edited ×1"> has inspired a variety of proposed solutions </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="88" data-revs="82,88" data-touched="96" data-tip="added 29 Jul 2023 by Ansh Saxena 7163 · “(no edit summary)”
-last reworked 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-edited ×2">and concepts </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="96" data-revs="96" data-touched="96" data-tip="added 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-edited ×1">regarding</ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
+<ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">In contemporary philosophy, th</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="68,83,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">e</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="83" data-revs="68,83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> thought experimen</ins><ins class="dd" data-d="2" data-a="6" data-au="0" data-rev="82" data-revs="68,82" data-touched="99" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">t has applications to</ins><ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="81" data-revs="68,81" data-touched="99" data-tip="added 18 May 2022 by Thrakkx (+15 other revisions since 16 Feb 2022) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> the </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="82" data-revs="82" data-touched="96" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×1">philosophical study of identity</ins><ins class="dd" data-d="2" data-a="5" data-au="2" data-rev="84" data-revs="82,84" data-touched="96" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×2"> over time</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="82,94" data-touched="96" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×2">. </ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="96" data-revs="82,94,96" data-touched="96" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×3">Within the contemporary philosophy of mind, i</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="82,94" data-touched="96" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×2">t</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="82" data-revs="82" data-touched="96" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×1"> has inspired a variety of proposed solutions </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="88" data-revs="82,88" data-touched="96" data-tip="added 29 Jul 2023 by Ansh Saxena 7163 (+15 other revisions since 24 Feb 2023) · “(no edit summary)”
+last reworked 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×2">and concepts </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="96" data-revs="96" data-touched="96" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+edited ×1">regarding</ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
 edited ×1"> the persistence of personal identity.
 
 History
-In its original formulation, the &quot;Ship of Theseus&quot; paradox concerns a debate over whether a ship that </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="84,95" data-touched="97" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-edited ×2">has </ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-edited ×1">had all of </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="86" data-revs="84,86" data-touched="97" data-tip="added 14 Feb 2023 by Philoserf · “light c/e”
-last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-edited ×2">its </ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
+In its original formulation, the &quot;Ship of Theseus&quot; paradox concerns a debate over whether a ship that </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="84,95" data-touched="97" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+edited ×2">has </ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+edited ×1">had all of </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="86" data-revs="84,86" data-touched="97" data-tip="added 14 Feb 2023 by Philoserf (+15 other revisions since 29 Sept 2022) · “light c/e”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+edited ×2">its </ins><ins class="dd" data-d="1" data-a="5" data-au="2" data-rev="84" data-revs="84" data-touched="97" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
 edited ×1">components replaced one by one would remain the same ship. The account of the problem has been preserved by Plutarch in his Life of Theseus:</ins>
 
-<ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="71,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">The seventeenth</ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="98" data-revs="71,97,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×3">-</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="71,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">century</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 · “→Applications:“Paradox” to “thought puzzle””
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> philosopher Thomas Hobbes </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="83" data-revs="71,83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">extended the thought experiment by suppos</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 · “→Applications:“Paradox” to “thought puzzle””
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">ing </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="83" data-revs="71,83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">t</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 · “→Applications:“Paradox” to “thought puzzle””
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">hat </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">a </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="91" data-revs="83,91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">ship </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">custodian gathered up all of the decayed parts as they were disposed and used </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="83,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">them</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> to build a second ship</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="83,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">,  then asked which of the two</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="83,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">—</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">the custodian</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="90" data-revs="83,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">'</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">s or the Athenians</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="90" data-revs="83,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">'</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="83,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">—</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">was the </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="83,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">&quot;</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">original&quot; ship</ins><ins class="dd" data-d="1" data-a="3" data-au="0" data-rev="82" data-revs="82" data-touched="84" data-tip="added 13 Aug 2022 by Carchasm · “move primary sources to footnotes”
-last reworked 25 Sept 2022 by Arjayay · “Duplicate word removed”
+<ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="71,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">The seventeenth</ins><ins class="dd" data-d="3" data-a="5" data-au="x" data-rev="98" data-revs="71,97,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×3">-</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="71,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">century</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> philosopher Thomas Hobbes </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="83" data-revs="71,83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">extended the thought experiment by suppos</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">ing </ins><ins class="dd" data-d="2" data-a="5" data-au="0" data-rev="83" data-revs="71,83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">t</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="71" data-revs="71" data-touched="98" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">hat </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">a </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="91" data-revs="83,91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">ship </ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">custodian gathered up all of the decayed parts as they were disposed and used </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="83,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">them</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> to build a second ship</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="97" data-revs="83,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">,  then asked which of the two</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="83,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">—</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">the custodian</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="90" data-revs="83,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">'</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">s or the Athenians</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="90" data-revs="83,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">'</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="83,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">—</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">was the </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="83,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">&quot;</ins><ins class="dd" data-d="1" data-a="5" data-au="0" data-rev="83" data-revs="83" data-touched="98" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">original&quot; ship</ins><ins class="dd" data-d="1" data-a="3" data-au="0" data-rev="82" data-revs="82" data-touched="84" data-tip="added 13 Aug 2022 by Carchasm (+15 other revisions since 18 May 2022) · “move primary sources to footnotes”
+last reworked 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
 edited ×1">.</ins>
 
-<ins class="dd" data-d="1" data-a="3" data-au="2" data-rev="84" data-revs="84" data-touched="89" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 3 Nov 2023 by DocWatson42 · “Cleaned up references and other matters.”
-edited ×1">Hobbes considers the two resulting ships as illustrating two definitions of &quot;Identity&quot; or samenes</ins><ins class="dd" data-d="4" data-a="5" data-au="x" data-rev="45" data-revs="1,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking · “Formatting citation properly.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">s</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="97" data-revs="1,10,11,45,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">, form and matter,</ins> <ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,45,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">t</ins><ins class="dd" data-d="4" data-a="5" data-au="x" data-rev="45" data-revs="1,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking · “Formatting citation properly.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">ha</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">t are being compared to the original ship</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="90" data-revs="1,10,11,84,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">:</ins>
+<ins class="dd" data-d="1" data-a="3" data-au="2" data-rev="84" data-revs="84" data-touched="89" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+edited ×1">Hobbes considers the two resulting ships as illustrating two definitions of &quot;Identity&quot; or samenes</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">s</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,45,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">, form and matter,</ins> <ins class="dd" data-d="6" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,45,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">t</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">ha</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">t are being compared to the original ship</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="90" data-revs="1,6,10,11,84,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">:</ins>
 
-<ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">the ship that maintains the same &quot;</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="97" data-revs="1,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">f</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">orm&quot; as the original, that which persists through complete replacement of material and</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="90" data-revs="1,10,11,84,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">;</ins>
-<ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">the ship made of the same &quot;</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="97" data-revs="1,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">m</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">atter&quot;</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="86" data-revs="1,10,11,84,86" data-touched="98" data-tip="added 14 Feb 2023 by Philoserf · “light c/e”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">,</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> that which stops being 100</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="89" data-revs="1,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 · “Cleaned up references and other matters.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5"> percent</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> the same ship when the first part is replaced.
+<ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">the ship that maintains the same &quot;</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">f</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">orm&quot; as the original, that which persists through complete replacement of material and</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="90" data-revs="1,6,10,11,84,90" data-touched="98" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">;</ins>
+<ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">the ship made of the same &quot;</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">m</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">atter&quot;</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="86" data-revs="1,6,10,11,84,86" data-touched="98" data-tip="added 14 Feb 2023 by Philoserf (+15 other revisions since 29 Sept 2022) · “light c/e”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">,</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> that which stops being 100</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="89" data-revs="1,6,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6"> percent</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> the same ship when the first part is replaced.
 
 Proposed resolutions
-The Ship of Theseus paradox can be though</ins><ins class="dd" data-d="5" data-a="5" data-au="1" data-rev="85" data-revs="1,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">t</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> of as an example of a puzzle of material constitution</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="98" data-revs="1,10,11,84,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">—</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">that is, a problem with determining the relationship between an object and the mat</ins><ins class="dd" data-d="3" data-a="5" data-au="6" data-rev="11" data-revs="1,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) · “→Other examples: Related concepts”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×3">erial</ins> <ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="89" data-revs="1,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 · “Cleaned up references and other matters.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">of which</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> i</ins><ins class="dd" data-d="5" data-a="5" data-au="1" data-rev="85" data-revs="1,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">t</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> is made.
+The Ship of Theseus paradox can be though</ins><ins class="dd" data-d="6" data-a="5" data-au="1" data-rev="85" data-revs="1,6,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">t</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> of as an example of a puzzle of material constitution</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="98" data-revs="1,6,10,11,84,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">—</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">that is, a problem with determining the relationship between an object and the mat</ins><ins class="dd" data-d="4" data-a="5" data-au="7" data-rev="11" data-revs="1,6,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) (+15 other revisions since 29 Dec 2006) · “→Other examples: Related concepts”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×4">erial</ins> <ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="89" data-revs="1,6,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">of which</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> i</ins><ins class="dd" data-d="6" data-a="5" data-au="1" data-rev="85" data-revs="1,6,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">t</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> is made.
 
 Constitution is not identity
-According to the Stanford Encyclopedia of Philosophy, the most popular solution is to accept the conclusion that the material </ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="89" data-revs="1,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 · “Cleaned up references and other matters.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">out of which</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> the ship is made is not the same object as the ship, but that the two objects simply occupy the same space at the same time.
+According to the Stanford Encyclopedia of Philosophy, the most popular solution is to accept the conclusion that the material </ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="89" data-revs="1,6,10,11,84,89" data-touched="98" data-tip="added 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">out of which</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> the ship is made is not the same object as the ship, but that the two objects simply occupy the same space at the same time.
 
-Temporal </ins><ins class="dd" data-d="5" data-a="5" data-au="1" data-rev="85" data-revs="1,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">p</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">arts
-Another common theory</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="95" data-revs="1,10,11,84,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">,</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> put forth by </ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="97" data-revs="1,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">twentieth</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="98" data-revs="1,10,11,84,97,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×6">-</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="97" data-revs="1,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 · “→Temporal parts:Clarity.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">century American philosopher </ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">David Lewis, is to divide up all objects i</ins><ins class="dd" data-d="4" data-a="5" data-au="x" data-rev="45" data-revs="1,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking · “Formatting citation properly.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">nt</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,45,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">o</ins><ins class="dd" data-d="4" data-a="5" data-au="x" data-rev="45" data-revs="1,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking · “Formatting citation properly.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> three</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="86" data-revs="1,10,11,45,86" data-touched="98" data-tip="added 14 Feb 2023 by Philoserf · “light c/e”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">-</ins><ins class="dd" data-d="4" data-a="5" data-au="x" data-rev="45" data-revs="1,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking · “Formatting citation properly.”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">dimensional time-slices </ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4">which are temporally distinct</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="95" data-revs="1,10,11,84,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×5">. This</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> avoids the issue that the two different ships exist in the same space at one time and a different space at another </ins><ins class="dd" data-d="3" data-a="5" data-au="6" data-rev="11" data-revs="1,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) · “→Other examples: Related concepts”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×3">time</ins><ins class="dd" data-d="4" data-a="5" data-au="2" data-rev="84" data-revs="1,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay · “Duplicate word removed”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×4"> by considering the objects to be distinct from each other at all points in tim</ins><ins class="dd" data-d="3" data-a="5" data-au="6" data-rev="11" data-revs="1,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) · “→Other examples: Related concepts”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×3">e.</ins>
+Temporal </ins><ins class="dd" data-d="6" data-a="5" data-au="1" data-rev="85" data-revs="1,6,10,11,84,85" data-touched="98" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">p</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">arts
+Another common theory</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="95" data-revs="1,6,10,11,84,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">,</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> put forth by </ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">twentieth</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="98" data-revs="1,6,10,11,84,97,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×7">-</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="97" data-revs="1,6,10,11,84,97" data-touched="98" data-tip="added 25 Oct 2025 by 2601:188:CB82:D170:1D72:62A2:E8F5:1B19 (+15 other revisions since 7 Sept 2025) · “→Temporal parts:Clarity.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">century American philosopher </ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">David Lewis, is to divide up all objects i</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">nt</ins><ins class="dd" data-d="6" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,45,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">o</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> three</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="86" data-revs="1,6,10,11,45,86" data-touched="98" data-tip="added 14 Feb 2023 by Philoserf (+15 other revisions since 29 Sept 2022) · “light c/e”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">-</ins><ins class="dd" data-d="5" data-a="5" data-au="x" data-rev="45" data-revs="1,6,10,11,45" data-touched="98" data-tip="added 24 Aug 2013 by Mobilesworking (+15 other revisions since 9 May 2013) · “Formatting citation properly.”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">dimensional time-slices </ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5">which are temporally distinct</ins><ins class="dd" data-d="6" data-a="5" data-au="x" data-rev="95" data-revs="1,6,10,11,84,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×6">. This</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> avoids the issue that the two different ships exist in the same space at one time and a different space at another </ins><ins class="dd" data-d="4" data-a="5" data-au="7" data-rev="11" data-revs="1,6,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) (+15 other revisions since 29 Dec 2006) · “→Other examples: Related concepts”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×4">time</ins><ins class="dd" data-d="5" data-a="5" data-au="2" data-rev="84" data-revs="1,6,10,11,84" data-touched="98" data-tip="added 25 Sept 2022 by Arjayay (+15 other revisions since 24 Sept 2022) · “Duplicate word removed”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×5"> by considering the objects to be distinct from each other at all points in tim</ins><ins class="dd" data-d="4" data-a="5" data-au="7" data-rev="11" data-revs="1,6,10,11" data-touched="98" data-tip="added 11 Mar 2007 by Root4(one) (+15 other revisions since 29 Dec 2006) · “→Other examples: Related concepts”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×4">e.</ins>
 
-<ins class="dd" data-d="1" data-a="4" data-au="7" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix · “→There is no ship: Really not main article”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×1">Cognitive </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="67" data-revs="66,67" data-touched="94" data-tip="added 31 May 2019 by 84.246.203.157 · “→There is no ship:”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">s</ins><ins class="dd" data-d="1" data-a="4" data-au="7" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix · “→There is no ship: Really not main article”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
+<ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">Cognitive </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="67" data-revs="66,67" data-touched="94" data-tip="added 31 May 2019 by 84.246.203.157 (+15 other revisions since 4 Apr 2019) · “→There is no ship:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">s</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
 edited ×1">cience
-According to </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="87" data-revs="66,87" data-touched="94" data-tip="added 24 Feb 2023 by Eldomtom2 · “→In popular culture: grammar”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">other scientists</ins><ins class="dd" data-d="1" data-a="4" data-au="7" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix · “→There is no ship: Really not main article”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×1">, the </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="71" data-revs="66,71" data-touched="94" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 · “→Applications:“Paradox” to “thought puzzle””
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">thought puzzle</ins><ins class="dd" data-d="1" data-a="4" data-au="7" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix · “→There is no ship: Really not main article”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×1"> arises because of extreme externalism: the assumption that what is true in our minds </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="94" data-revs="66,94" data-touched="94" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">also hold</ins><ins class="dd" data-d="1" data-a="4" data-au="7" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix · “→There is no ship: Really not main article”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×1">s true in the world.</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="90" data-revs="66,90" data-touched="94" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2"> Noam</ins> <ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="78" data-revs="66,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C · “→History: the Ship of Theseus is not an example of itself”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">Chomsky says that t</ins><ins class="dd" data-d="1" data-a="4" data-au="7" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix · “→There is no ship: Really not main article”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×1">his is not an unassailable assumption, from the perspective of the natural sciences, because human intuition is often mistaken. Cognitive science would treat this </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="71" data-revs="66,71" data-touched="94" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 · “→Applications:“Paradox” to “thought puzzle””
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">thought puzzle</ins><ins class="dd" data-d="1" data-a="4" data-au="7" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix · “→There is no ship: Really not main article”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×1"> as the subject of a</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 · “→Media:”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
+According to </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="87" data-revs="66,87" data-touched="94" data-tip="added 24 Feb 2023 by Eldomtom2 (+15 other revisions since 14 Feb 2023) · “→In popular culture: grammar”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">other scientists</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">, the </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="71" data-revs="66,71" data-touched="94" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">thought puzzle</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1"> arises because of extreme externalism: the assumption that what is true in our minds </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="94" data-revs="66,94" data-touched="94" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">also hold</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">s true in the world.</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="90" data-revs="66,90" data-touched="94" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2"> Noam</ins> <ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="78" data-revs="66,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C (+15 other revisions since 16 May 2021) · “→History: the Ship of Theseus is not an example of itself”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">Chomsky says that t</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1">his is not an unassailable assumption, from the perspective of the natural sciences, because human intuition is often mistaken. Cognitive science would treat this </ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="71" data-revs="66,71" data-touched="94" data-tip="added 8 Oct 2020 by 2600:1003:B864:A39A:BDE6:5A3F:C549:6F02 (+15 other revisions since 25 Jul 2020) · “→Applications:“Paradox” to “thought puzzle””
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">thought puzzle</ins><ins class="dd" data-d="1" data-a="4" data-au="x" data-rev="66" data-revs="66" data-touched="94" data-tip="added 4 Apr 2019 by Kranix (+15 other revisions since 31 Dec 2018) · “→There is no ship: Really not main article”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×1"> as the subject of a</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
 edited ×2">n investigation of the human mind. Studying this human confusion can reveal much about the brain's operation, but little about the nature of the human-independent external world.
 
-Following on from this observation, a significant strand in </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="78" data-revs="66,76,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C · “→History: the Ship of Theseus is not an example of itself”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×3">c</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 · “→Media:”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">ognitive </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="78" data-revs="66,76,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C · “→History: the Ship of Theseus is not an example of itself”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×3">s</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 · “→Media:”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">cience would consider </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="92" data-revs="66,76,92" data-touched="94" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×3">the s</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 · “→Media:”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-edited ×2">hip not as a thing, nor even a collection of objectively existing thing</ins> <ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 · “→Media:”
-last reworked 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
+Following on from this observation, a significant strand in </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="78" data-revs="66,76,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C (+15 other revisions since 16 May 2021) · “→History: the Ship of Theseus is not an example of itself”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×3">c</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">ognitive </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="78" data-revs="66,76,78" data-touched="94" data-tip="added 11 Oct 2021 by 2A00:23C8:3484:A601:EC5F:8040:C191:AA7C (+15 other revisions since 16 May 2021) · “→History: the Ship of Theseus is not an example of itself”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×3">s</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">cience would consider </ins><ins class="dd" data-d="3" data-a="4" data-au="x" data-rev="92" data-revs="66,76,92" data-touched="94" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×3">the s</ins><ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+edited ×2">hip not as a thing, nor even a collection of objectively existing thing</ins> <ins class="dd" data-d="2" data-a="4" data-au="x" data-rev="76" data-revs="66,76" data-touched="94" data-tip="added 16 Mar 2021 by 67.175.224.195 (+15 other revisions since 8 Mar 2021) · “→Media:”
+last reworked 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
 edited ×2">parts, but rather as an organisational structure that has perceptual continuity.</ins>
 
-<ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
+<ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
 edited ×1">Deflationism
-According to the Stanford Encyclopedia of Philosophy, the </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×2">d</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×1">eflationist view is that the facts of the thought experiment are undisputed</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×2">;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×1"> the only dispute is over the meaning of the term &quot;ship&quot; and </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×2">is </ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×1">thus merely verbal. American philosopher Hilary Putnam asserts </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×2">that &quot;t</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×1">he logical primitives themselves, and in particular the notions of object and existence, have a multitude of different uses rather than one absolute </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×2">'</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×1">meaning</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×2">'.&quot;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×1"> This thesis—that there are many meanings for the existential quantifier that are equally natural and equally adequate for describing all the facts—is often referred to as </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×2">&quot;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-edited ×1">the doctrine of quantifier variance</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
+According to the Stanford Encyclopedia of Philosophy, the </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">d</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">eflationist view is that the facts of the thought experiment are undisputed</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1"> the only dispute is over the meaning of the term &quot;ship&quot; and </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">is </ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">thus merely verbal. American philosopher Hilary Putnam asserts </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">that &quot;t</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">he logical primitives themselves, and in particular the notions of object and existence, have a multitude of different uses rather than one absolute </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">'</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">meaning</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">'.&quot;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1"> This thesis—that there are many meanings for the existential quantifier that are equally natural and equally adequate for describing all the facts—is often referred to as </ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×2">&quot;</ins><ins class="dd" data-d="1" data-a="3" data-au="x" data-rev="90" data-revs="90" data-touched="92" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+edited ×1">the doctrine of quantifier variance</ins><ins class="dd" data-d="2" data-a="3" data-au="x" data-rev="92" data-revs="90,92" data-touched="92" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
 edited ×2">.&quot;</ins>
 
-<ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
+<ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
 edited ×1">Continued identity theory
-This solution (proposed by Kate, Ernest et al</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">.</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">) sees an object as staying the same as long as it continuously </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="91,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">and metaphysically </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">exists under the same identity</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2"> without being</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> fully transformed at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">on</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">e time. For instance, a house</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2"> that has its</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> front wall destroyed and replaced at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">Y</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">ear </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">One</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">, the ceiling replaced at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">Y</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">ear </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker · “remove &quot;see also&quot; entries that are unrelated to this topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">Two</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">, </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">and so on,</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> until every part of the house has been replaced will still be </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">understood as</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> the same</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2"> house</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1">. However, if every wall, the floor</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">,</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> and the </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">roof</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×1"> are destroyed and replaced at the same time, it will be </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="91,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-edited ×2">regarded</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
+This solution (proposed by Kate, Ernest et al</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">.</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">) sees an object as staying the same as long as it continuously </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="94" data-revs="91,94" data-touched="98" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">and metaphysically </ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">exists under the same identity</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2"> without being</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> fully transformed at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">on</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">e time. For instance, a house</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2"> that has its</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> front wall destroyed and replaced at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">Y</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">ear </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">One</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">, the ceiling replaced at </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">Y</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">ear </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="95" data-revs="91,95" data-touched="98" data-tip="added 31 Jan 2025 by CodeTalker (+15 other revisions since 24 Aug 2024) · “remove &quot;see also&quot; entries that are unrelated to this topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">Two</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">, </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">and so on,</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> until every part of the house has been replaced will still be </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">understood as</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> the same</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2"> house</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1">. However, if every wall, the floor</ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">,</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> and the </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="92" data-revs="91,92" data-touched="98" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">roof</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×1"> are destroyed and replaced at the same time, it will be </ins><ins class="dd" data-d="2" data-a="5" data-au="x" data-rev="98" data-revs="91,98" data-touched="98" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+edited ×2">regarded</ins><ins class="dd" data-d="1" data-a="5" data-au="x" data-rev="91" data-revs="91" data-touched="98" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
 edited ×1"> as a new house.</ins>
 
-<ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+<ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×1">Alternative forms</ins>
-<ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">In </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">Western countries</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">, several independent tales and stories feature knives </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="83,85,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">of which</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> the blades and handles </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="83,85,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 · “→Continued identity theory:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">had been </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">replaced several times but are still used and represent the same knife. France has Jeannot's knife</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">;</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> Spain uses Jeannot's knife as a proverb, though it is referred to simply as &quot;the family knife&quot;</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">;</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2"> and Hungary has &quot;Lajos Kossuth's pocket knife&quot;. Several variants or alternative statements of the underlying problem are known, including the grandfather's axe, where an old </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="90" data-revs="83,85,90" data-touched="99" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao · “→Constitution is not identity: - italics”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">axe </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">has had both its head and its handle replaced, leaving no original components.</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> In an American version, a museum claims to own George Washington's axe, but the axe's handle has been replaced three times and its head twice.</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 · “Minor grammatical and typographical corrections”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+<ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">In </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">Western countries</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">, several independent tales and stories feature knives </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="83,85,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">of which</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> the blades and handles </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="94" data-revs="83,85,94" data-touched="99" data-tip="added 24 Aug 2024 by 74.143.20.235 (+15 other revisions since 3 May 2024) · “→Continued identity theory:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">had been </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">replaced several times but are still used and represent the same knife. France has Jeannot's knife</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">;</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> Spain uses Jeannot's knife as a proverb, though it is referred to simply as &quot;the family knife&quot;</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">;</ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2"> and Hungary has &quot;Lajos Kossuth's pocket knife&quot;. Several variants or alternative statements of the underlying problem are known, including the grandfather's axe, where an old </ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="90" data-revs="83,85,90" data-touched="99" data-tip="added 17 Dec 2023 by Ser Amantio di Nicolao (+15 other revisions since 3 Nov 2023) · “→Constitution is not identity: - italics”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">axe </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">has had both its head and its handle replaced, leaving no original components.</ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> In an American version, a museum claims to own George Washington's axe, but the axe's handle has been replaced three times and its head twice.</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="98" data-revs="83,85,98" data-touched="99" data-tip="added 18 Dec 2025 by Woolfy123 (+15 other revisions since 25 Oct 2025) · “Minor grammatical and typographical corrections”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×3"> In Britain, the term Trigger's broom is sometimes used, in reference to a line from the sitcom Only Fools and Horses in which road sweeper Trigger says that he has used the same broom for 20 years, with it only needing 17 new heads and 14 new handles in that time.</ins>
 
-<ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="93" data-revs="83,85,93" data-touched="99" data-tip="added 3 May 2024 by Notxabee · “It is also known as &quot;Theseus's Paradox&quot;.”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">The French critic and essayist Roland Barthes refers at least twice to a ship that is entirely rebuilt, in the preface to his Essais Critiques (1971) and later in his Roland Barthes par Roland Barthes (1975); in the latter, the persistence of the form of the ship is seen as a key structuralist principle. He calls this ship the Argo, on which Theseus was said to have sailed with Jason; he may have confused the Argo (referred to in passing in Plutarch's Theseus at 19.4) with the ship that sailed from Crete (Theseus, 23.1)</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="91" data-revs="83,85,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+<ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="93" data-revs="83,85,93" data-touched="99" data-tip="added 3 May 2024 by Notxabee (+15 other revisions since 29 Mar 2024) · “It is also known as &quot;Theseus's Paradox&quot;.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">The French critic and essayist Roland Barthes refers at least twice to a ship that is entirely rebuilt, in the preface to his Essais Critiques (1971) and later in his Roland Barthes par Roland Barthes (1975); in the latter, the persistence of the form of the ship is seen as a key structuralist principle. He calls this ship the Argo, on which Theseus was said to have sailed with Jason; he may have confused the Argo (referred to in passing in Plutarch's Theseus at 19.4) with the ship that sailed from Crete (Theseus, 23.1)</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="91" data-revs="83,85,91" data-touched="99" data-tip="added 11 Jan 2024 by SpinoAce (+15 other revisions since 17 Dec 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×3">.</ins>
 
-<ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+<ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×3">The ancient Buddhist text Da zhidu lun contains a similar philosophical puzzle: a story of a traveller who encountered two demons in the night. As one demon ripped off all parts of the traveler's body one by one, the other demon replaced them with those of a corpse, and the traveller was confused about who he was.
 
 Examples
-The wooden-hulled frigate USS Constitution is referenced by the museum's official website as an example of the paradox, with it being thought that as little as ten to twenty pe</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="92" data-revs="83,85,92" data-touched="99" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3">rce</ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="83,85,92,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×4">nt</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="92" data-revs="83,85,92" data-touched="99" data-tip="added 29 Mar 2024 by Alarob · “→Alternative forms: rm graf not directly related to topic”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×3"> of the </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+The wooden-hulled frigate USS Constitution is referenced by the museum's official website as an example of the paradox, with it being thought that as little as ten to twenty pe</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="92" data-revs="83,85,92" data-touched="99" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3">rce</ins><ins class="dd" data-d="4" data-a="6" data-au="3" data-rev="99" data-revs="83,85,92,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×4">nt</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="92" data-revs="83,85,92" data-touched="99" data-tip="added 29 Mar 2024 by Alarob (+15 other revisions since 11 Jan 2024) · “→Alternative forms: rm graf not directly related to topic”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×3"> of the </ins><ins class="dd" data-d="3" data-a="6" data-au="3" data-rev="99" data-revs="83,85,99" data-touched="99" data-tip="added 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×3">1797 ship is original. Charles Joseph Bonaparte wrote in a 1905 Navy report that in his view it was &quot;not the vessel with which Hull [had captured] Guerriere.&quot; The Antique and Classic Boat Society define a preserved boat as &quot;containing at least 60% of their original deck and topsides material&quot;, but in the case of the Constitution they conclude that it &quot;has essentially none of its original wood but we believe no one would consider it a replica.  It is Old Ironsides.&quot;
 
-In Japan, the Ise Grand Shrine is rebuilt every twenty years with entirely &quot;new wood&quot;. The continuity over the centuries is considered spiritual and comes from the source of the wood, which is harvested from an adjoining forest that is considered sacred</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="83,85,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+In Japan, the Ise Grand Shrine is rebuilt every twenty years with entirely &quot;new wood&quot;. The continuity over the centuries is considered spiritual and comes from the source of the wood, which is harvested from an adjoining forest that is considered sacred</ins><ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="96" data-revs="83,85,96" data-touched="99" data-tip="added 7 Sept 2025 by Pepelepe1234 (+15 other revisions since 31 Jan 2025) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×3">.</ins>
 
-<ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="88" data-revs="83,85,88" data-touched="99" data-tip="added 29 Jul 2023 by Ansh Saxena 7163 · “(no edit summary)”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+<ins class="dd" data-d="3" data-a="6" data-au="x" data-rev="88" data-revs="83,85,88" data-touched="99" data-tip="added 29 Jul 2023 by Ansh Saxena 7163 (+15 other revisions since 24 Feb 2023) · “(no edit summary)”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×3">See also</ins>
-<ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="89" data-revs="83,89" data-touched="99" data-tip="added 3 Nov 2023 by DocWatson42 · “Cleaned up references and other matters.”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+<ins class="dd" data-d="2" data-a="6" data-au="x" data-rev="89" data-revs="83,89" data-touched="99" data-tip="added 3 Nov 2023 by DocWatson42 (+15 other revisions since 29 Jul 2023) · “Cleaned up references and other matters.”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×2">Citations
-General and cited r</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+General and cited r</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×1">eferences
-Further </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz · “→Proposed resolutions:”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
-edited ×2">r</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm · “→History: add from wasserman explicating problem”
-last reworked 4 Jul 2026 by VanFinda · “Interceptor: Reverting non-constructive edits by ~2026-38064-92”
+Further </ins><ins class="dd" data-d="2" data-a="6" data-au="1" data-rev="85" data-revs="83,85" data-touched="99" data-tip="added 29 Sept 2022 by JhiXaz (+15 other revisions since 25 Sept 2022) · “→Proposed resolutions:”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
+edited ×2">r</ins><ins class="dd" data-d="1" data-a="6" data-au="0" data-rev="83" data-revs="83" data-touched="99" data-tip="added 24 Sept 2022 by Carchasm (+16 other revisions since 13 Aug 2022) · “→History: add from wasserman explicating problem”
+last reworked 3 Jul 2026 by ~2026-38176-45 (state restored by a revert on 4 Jul 2026) · “(no edit summary)”
 edited ×1">eading
 External links
 S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Theseus&quot; from the University of Washington</ins></article>
@@ -787,10 +791,10 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
   </span>
 </li>
 <li class="commit" data-rev="6" tabindex="0">
-  <span class="dot m4" title="5,774 chars inserted, 3,179 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="dot m4" title="5,774 chars inserted, 3,179 deleted vs the previous sampled revision"></span>
   <span class="c-body">
     <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=47208077">6 Apr 2006</a> <span class="subject" title="→Ghost in the Shell:">→Ghost in the Shell:</span></span>
-    <span class="c-meta" title="5,774 chars inserted, 3,179 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">209.6.186.139 · +5,774 −3,179 · nothing survives</span>
+    <span class="c-meta" title="5,774 chars inserted, 3,179 deleted vs the previous sampled revision"><i class="au-dot" data-au="5"></i>209.6.186.139 · +5,774 −3,179</span>
   </span>
 </li>
 <li class="commit" data-rev="7" tabindex="0">
@@ -815,17 +819,17 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
   </span>
 </li>
 <li class="commit" data-rev="10" tabindex="0">
-  <span class="dot m4" title="3,463 chars inserted, 6,839 deleted vs the previous sampled revision"></span>
+  <span class="dot m4" title="3,467 chars inserted, 6,843 deleted vs the previous sampled revision"></span>
   <span class="c-body">
     <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=97212589">29 Dec 2006</a> <span class="subject" title="→In popular culture:">→In popular culture:</span></span>
-    <span class="c-meta" title="3,463 chars inserted, 6,839 deleted vs the previous sampled revision"><i class="au-dot" data-au="5"></i>JETM · +3,463 −6,839</span>
+    <span class="c-meta" title="3,467 chars inserted, 6,843 deleted vs the previous sampled revision"><i class="au-dot" data-au="6"></i>JETM · +3,467 −6,843</span>
   </span>
 </li>
 <li class="commit" data-rev="11" tabindex="0">
   <span class="dot m2" title="3,189 chars inserted, 208 deleted vs the previous sampled revision"></span>
   <span class="c-body">
     <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=114194779">11 Mar 2007</a> <span class="subject" title="→Other examples: Related concepts">→Other examples: Related concepts</span></span>
-    <span class="c-meta" title="3,189 chars inserted, 208 deleted vs the previous sampled revision"><i class="au-dot" data-au="6"></i>Root4(one) · +3,189 −208</span>
+    <span class="c-meta" title="3,189 chars inserted, 208 deleted vs the previous sampled revision"><i class="au-dot" data-au="7"></i>Root4(one) · +3,189 −208</span>
   </span>
 </li>
 <li class="commit" data-rev="12" tabindex="0">
@@ -957,8 +961,8 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
 <li class="commit" data-rev="30" tabindex="0">
   <span class="dot m1" title="597 chars inserted, 2 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
   <span class="c-body">
-    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=379925083">20 Aug 2010</a> <span class="subject" title="Undid revision 373377443 by Hallenrm (not a reference source; user adding links to his own writings)">Undid revision 373377443 by Hallenrm (not a reference source; user adding links to his own writings)</span></span>
-    <span class="c-meta" title="597 chars inserted, 2 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Ckatz · +597 −2 · nothing survives</span>
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=377430520">6 Aug 2010</a> <span class="subject" title="→In popular culture: gram">→In popular culture: gram</span></span>
+    <span class="c-meta" title="597 chars inserted, 2 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Cybercobra · +597 −2 · nothing survives</span>
   </span>
 </li>
 <li class="commit" data-rev="31" tabindex="0">
@@ -969,17 +973,17 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
   </span>
 </li>
 <li class="commit" data-rev="32" tabindex="0">
-  <span class="dot m2" title="1,174 chars inserted, 102 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="dot m2" title="1,174 chars inserted, 134 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
   <span class="c-body">
-    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=409233362">21 Jan 2011</a> <span class="subject" title="Undid revision 407833264 by Alistair Stevenson (talk). Yes it is.">Undid revision 407833264 by Alistair Stevenson (talk). Yes it is.</span></span>
-    <span class="c-meta" title="1,174 chars inserted, 102 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Arriva436 · +1,174 −102 · nothing survives</span>
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=409019427">20 Jan 2011</a> <span class="subject" title="→In popular culture: minor edit: corrected spelling of &quot;series&quot; in star trek item in this list.">→In popular culture: minor edit: corrected spelling of &quot;series&quot; in star trek item in this list.</span></span>
+    <span class="c-meta" title="1,174 chars inserted, 134 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">209.203.86.33 · +1,174 −134 · nothing survives</span>
   </span>
 </li>
 <li class="commit" data-rev="33" tabindex="0">
-  <span class="dot m1" title="565 chars inserted, 199 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="dot m1" title="597 chars inserted, 199 deleted vs the previous sampled revision"></span>
   <span class="c-body">
     <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=424707085">18 Apr 2011</a> <span class="subject" title="→Buddhism: One more time">→Buddhism: One more time</span></span>
-    <span class="c-meta" title="565 chars inserted, 199 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">198.190.216.43 · +565 −199 · nothing survives</span>
+    <span class="c-meta" title="597 chars inserted, 199 deleted vs the previous sampled revision">198.190.216.43 · +597 −199</span>
   </span>
 </li>
 <li class="commit" data-rev="34" tabindex="0">
@@ -1046,10 +1050,10 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
   </span>
 </li>
 <li class="commit" data-rev="43" tabindex="0">
-  <span class="dot m1" title="341 chars inserted, 494 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="dot m1" title="341 chars inserted, 494 deleted vs the previous sampled revision"></span>
   <span class="c-body">
     <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=540473142">26 Feb 2013</a> <span class="subject" title="→In literature:">→In literature:</span></span>
-    <span class="c-meta" title="341 chars inserted, 494 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">Rob T Firefly · +341 −494 · nothing survives</span>
+    <span class="c-meta" title="341 chars inserted, 494 deleted vs the previous sampled revision">Rob T Firefly · +341 −494</span>
   </span>
 </li>
 <li class="commit" data-rev="44" tabindex="0">
@@ -1076,8 +1080,8 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
 <li class="commit" data-rev="47" tabindex="0">
   <span class="dot m2" title="1,032 chars inserted, 182 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
   <span class="c-body">
-    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=586310568">16 Dec 2013</a> <span class="subject" title="rv &quot;pockmarking&quot; tagging indiscriminately to every paragraph in a section">rv &quot;pockmarking&quot; tagging indiscriminately to every paragraph in a section</span></span>
-    <span class="c-meta" title="1,032 chars inserted, 182 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">AnonMoos · +1,032 −182 · nothing survives</span>
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=586299093">16 Dec 2013</a> <span class="subject" title="→Proposed resolutions: Added section addressing another alternative resolution">→Proposed resolutions: Added section addressing another alternative resolution</span></span>
+    <span class="c-meta" title="1,032 chars inserted, 182 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">151.207.250.51 · +1,032 −182 · nothing survives</span>
   </span>
 </li>
 <li class="commit" data-rev="48" tabindex="0">
@@ -1186,17 +1190,17 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
   </span>
 </li>
 <li class="commit" data-rev="63" tabindex="0">
-  <span class="dot m2" title="990 chars inserted, 499 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="dot m2" title="957 chars inserted, 593 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
   <span class="c-body">
-    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=844029653">2 Jun 2018</a> <span class="subject" title="Undid revision 844029451 by ZaneGlaze (talk) should have said USS Constellation (1854) not Constitution">Undid revision 844029451 by ZaneGlaze (talk) should have said USS Constellation (1854) not Constitution</span></span>
-    <span class="c-meta" title="990 chars inserted, 499 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">ZaneGlaze · +990 −499 · nothing survives</span>
+    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=844029451">2 Jun 2018</a> <span class="subject" title="→Applications: i'm not sure what this is supposed to say, but it's uncited nonetheless">→Applications: i'm not sure what this is supposed to say, but it's uncited nonetheless</span></span>
+    <span class="c-meta" title="957 chars inserted, 593 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">ZaneGlaze · +957 −593 · nothing survives</span>
   </span>
 </li>
 <li class="commit" data-rev="64" tabindex="0">
-  <span class="dot m2" title="1,083 chars inserted, 464 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
+  <span class="dot m2" title="1,193 chars inserted, 447 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text."></span>
   <span class="c-body">
     <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=851709314">24 Jul 2018</a> <span class="subject" title="→The thought experiment:">→The thought experiment:</span></span>
-    <span class="c-meta" title="1,083 chars inserted, 464 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">96.41.174.225 · +1,083 −464 · nothing survives</span>
+    <span class="c-meta" title="1,193 chars inserted, 447 deleted vs the previous sampled revision. None of this revision’s wording survives in the current text.">96.41.174.225 · +1,193 −447 · nothing survives</span>
   </span>
 </li>
 <li class="commit" data-rev="65" tabindex="0">
@@ -1210,7 +1214,7 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
   <span class="dot m2" title="1,449 chars inserted, 26 deleted vs the previous sampled revision"></span>
   <span class="c-body">
     <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=890955850">4 Apr 2019</a> <span class="subject" title="→There is no ship: Really not main article">→There is no ship: Really not main article</span></span>
-    <span class="c-meta" title="1,449 chars inserted, 26 deleted vs the previous sampled revision"><i class="au-dot" data-au="7"></i>Kranix · +1,449 −26</span>
+    <span class="c-meta" title="1,449 chars inserted, 26 deleted vs the previous sampled revision">Kranix · +1,449 −26</span>
   </span>
 </li>
 <li class="commit" data-rev="67" tabindex="0">
@@ -1437,11 +1441,11 @@ S. Marc Cohen's Lecture notes on &quot;Identity, Persistence, and the Ship of Th
     <span class="c-meta" title="451 chars inserted, 177 deleted vs the previous sampled revision">Woolfy123 · +451 −177</span>
   </span>
 </li>
-<li class="commit" data-rev="99" tabindex="0">
-  <span class="dot m2" title="1,404 chars inserted, 745 deleted vs the previous sampled revision"></span>
+<li class="commit is-revert" data-rev="99" tabindex="0">
+  <span class="dot m2" title="1,404 chars inserted, 745 deleted vs the previous sampled revision This revision is flagged as a revert/rollback; its content matches an earlier revision byte-for-byte, so the document credits ~2026-38176-45’s 3 Jul 2026 edit instead of this one."></span>
   <span class="c-body">
-    <span class="c-top"><a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1362457739">4 Jul 2026</a> <span class="subject" title="Interceptor: Reverting non-constructive edits by ~2026-38064-92">Interceptor: Reverting non-constructive edits by ~2026-38064-92</span></span>
-    <span class="c-meta" title="1,404 chars inserted, 745 deleted vs the previous sampled revision"><i class="au-dot" data-au="3"></i>VanFinda · +1,404 −745</span>
+    <span class="c-top"><span class="revert-glyph" aria-hidden="true" title="Revert/rollback/undo">↩</span> <a class="sha" href="https://en.wikipedia.org/w/index.php?oldid=1362457739">4 Jul 2026</a> <span class="subject" title="Interceptor: Reverting non-constructive edits by ~2026-38064-92">Interceptor: Reverting non-constructive edits by ~2026-38064-92</span></span>
+    <span class="c-meta" title="1,404 chars inserted, 745 deleted vs the previous sampled revision This revision is flagged as a revert/rollback; its content matches an earlier revision byte-for-byte, so the document credits ~2026-38176-45’s 3 Jul 2026 edit instead of this one.">VanFinda · +1,404 −745 · ↩ revert — text credited to ~2026-38176-45’s 3 Jul 2026 revision</span>
   </span>
 </li>
     </ol>

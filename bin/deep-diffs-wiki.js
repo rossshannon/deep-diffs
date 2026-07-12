@@ -61,6 +61,15 @@ Revert collapsing (default on, disable with --keep-reverts):
   a vandalized state or straddles a revert, making huge swaths of the
   article look freshly edited and drowning the real editorial signal —
   especially in the Recency lens.
+
+  A revert can still survive collapsing — the article's true final
+  revision, or a partial revert that doesn't byte-match anything earlier.
+  Sample selection skips revert-flagged revisions in favour of the nearest
+  non-flagged predecessor where one is available; where one survives
+  anyway (most often as the final sample, which must stay the article's
+  real current state), the ledger marks it with a small ↩ and the document
+  credits the wording to the restored earlier revision's author instead of
+  the reverting editor, so a rollback is never presented as authorship.
 `;
 
 const USER_AGENT = 'deep-diffs-wiki/1.0 (https://github.com/rossshannon/deep-diffs)';
@@ -221,7 +230,7 @@ async function fetchHistory(title, lang) {
       titles: title,
       redirects: '1',
       prop: 'revisions',
-      rvprop: 'ids|timestamp|user|size|sha1|tags',
+      rvprop: 'ids|timestamp|user|size|sha1|tags|comment',
       rvlimit: '500',
       rvdir: 'newer',
       rvslots: 'main',
@@ -253,6 +262,10 @@ async function fetchHistory(title, lang) {
         size: r.size ?? 0,
         sha1: r.sha1 ?? null, // absent for some suppressed revisions
         tags: r.tags ?? [],
+        // comment rides this same paginated request (no extra API calls) so
+        // isRevertFlagged()'s comment heuristic can run over the *full*
+        // timeline, before sampling — same reason sha1/tags ride along.
+        comment: r.commenthidden ? null : (r.comment ?? ''),
       });
     }
 
@@ -275,7 +288,7 @@ async function fetchHistory(title, lang) {
       titles: resolvedTitle,
       redirects: '1',
       prop: 'revisions',
-      rvprop: 'ids|timestamp|user|size|sha1|tags',
+      rvprop: 'ids|timestamp|user|size|sha1|tags|comment',
       rvlimit: '1',
       rvdir: 'older',
     });
@@ -288,6 +301,7 @@ async function fetchHistory(title, lang) {
         size: latest.size ?? 0,
         sha1: latest.sha1 ?? null,
         tags: latest.tags ?? [],
+        comment: latest.commenthidden ? null : (latest.comment ?? ''),
       });
     }
   }
@@ -653,19 +667,213 @@ const displayComment = (rev) =>
     ? '(edit summary removed)'
     : (cleanSummary(rev.comment) || '(no edit summary)');
 
-/** Evenly sample up to max entries, always keeping the first and last. */
-function sampleEvenly(items, max) {
-  if (items.length <= max) return items;
+/**
+ * Evenly-spaced candidate indices into an array of length `length`, always
+ * including 0 and length-1. Extracted from sampleEvenly so pickSamplePoints
+ * (below) can walk the same candidate positions while substituting some of
+ * them for a revert-flagged revision's nearest non-flagged predecessor.
+ */
+function sampleIndices(length, max) {
+  if (length <= max) return Array.from({ length }, (_, i) => i);
   const picked = [];
   const seen = new Set();
   for (let i = 0; i < max; i++) {
-    const idx = Math.round((i * (items.length - 1)) / (max - 1));
+    const idx = Math.round((i * (length - 1)) / (max - 1));
     if (!seen.has(idx)) {
       seen.add(idx);
-      picked.push(items[idx]);
+      picked.push(idx);
     }
   }
   return picked;
+}
+
+/** Evenly sample up to max entries, always keeping the first and last. */
+function sampleEvenly(items, max) {
+  if (items.length <= max) return items;
+  return sampleIndices(items.length, max).map((i) => items[i]);
+}
+
+// ---------------------------------------------------------------------------
+// Revert-flagged sample selection & honest attribution
+//
+// collapseReverts() (above) removes vandalism/revert *cycles* — spans where
+// the article's content returns to an earlier byte-identical state. But a
+// revert can also survive collapsing and land on a sample point: either
+// because it's the article's true final revision (collapseReverts's
+// "always keep latest" safety net re-adds it even when its content matched
+// an earlier revision and would otherwise have collapsed away), or because
+// it's a *partial* revert/undo — its content doesn't exactly match any
+// earlier revision, so the sha1 rule can't touch it, and no mw-reverted tag
+// applies to the revert itself (only to what it reverted). Either way, that
+// revision's real content is legitimate — it's genuinely what the article
+// looked like at that point — but crediting *it* as the author/date of a
+// large swath of "reworked" text is dishonest: a rollback/undo is
+// janitorial, not authorship. This section keeps reverts from being "the
+// face" of a sampled step, and makes their attribution honest when one
+// still ends up as one.
+// ---------------------------------------------------------------------------
+
+/** Tags MediaWiki (or common vandalism-fighting tools) apply to a revert/rollback/undo. */
+const REVERT_TAGS = ['mw-undo', 'mw-rollback', 'mw-manual-revert'];
+
+/**
+ * Heuristic match for an edit summary describing a revert/rollback/undo,
+ * for the (fairly common) case of a manual revert carrying no MediaWiki
+ * tag at all — an editor who pastes back old wikitext by hand.
+ *
+ * Deliberately loose, and this is an accepted tradeoff: it will also flag
+ * ordinary prose that happens to contain one of these words — an edit
+ * summary reading "clarify how a car loan is undone at auction" or "revert
+ * to the original 1920 spelling per source" would match despite being
+ * ordinary editorial commentary, not a revert of a Wikipedia edit. A
+ * revert-flagged revision only ever changes *display* (attribution
+ * wording, a ledger glyph, which revision "is the face" of a sampled step)
+ * — never which text survives in the document or how it's diffed — so an
+ * occasional false positive costs a slightly-too-cautious tooltip label,
+ * never a wrong diff.
+ */
+const REVERT_COMMENT_RE = /\b(revert|reverting|rv\b|undid|undo|rollback)/i;
+
+/**
+ * Is `rev` (an object with `tags: string[]` and `comment: string|null`)
+ * flagged as a revert/rollback/undo, by MediaWiki tag or comment heuristic?
+ */
+function isRevertFlagged(rev) {
+  if (Array.isArray(rev?.tags) && rev.tags.some((t) => REVERT_TAGS.includes(t))) return true;
+  if (typeof rev?.comment === 'string' && REVERT_COMMENT_RE.test(rev.comment)) return true;
+  return false;
+}
+
+/**
+ * Choose sample points from the already revert-collapsed revision timeline
+ * (`revs`), skipping revert-flagged revisions so a rollback/undo is never
+ * "the face" of a sampled step. Candidate indices are exactly sampleEvenly's
+ * even spacing (see sampleIndices); whenever a candidate lands on a
+ * revert-flagged revision, this walks backward to the nearest preceding
+ * non-flagged revision instead — never past the previous sample point, so
+ * picks stay strictly increasing (no duplicates, no chronological-order
+ * violations are possible: each substitute is bounded below by the
+ * previous pick and above by the original candidate). If every revision
+ * back to the previous pick is revert-flagged, there's no better
+ * substitute available; the original (flagged) candidate is kept as-is —
+ * the caller/renderer is expected to mark it honestly rather than pretend
+ * it doesn't exist (see attributionFor and the ledger's revert glyph).
+ *
+ * The *final* candidate is exempt from this substitution: the report's
+ * last sample must always be the article's true current state, whatever
+ * that is, even when it's a revert. Its *attribution* (as opposed to its
+ * content) is made honest separately — see attributionFor /
+ * findRestoredAttribution.
+ *
+ * Each returned entry also carries `span`: how many revisions in `revs`
+ * this sample absorbs since the previous sample point, inclusive of
+ * itself — i.e. how many underlying edits a single deep-diff step actually
+ * represents, surfaced in the doc tooltip via formatAttribution when > 1.
+ *
+ * @returns {{rev: object, index: number, span: number}[]}
+ */
+function pickSamplePoints(revs, max, isFlagged = isRevertFlagged) {
+  const candidates = sampleIndices(revs.length, max);
+  const lastK = candidates.length - 1;
+  const picked = [];
+  let prevIdx = -1;
+  for (let k = 0; k <= lastK; k++) {
+    let idx = candidates[k];
+    if (k !== lastK) {
+      let j = idx;
+      while (j > prevIdx && isFlagged(revs[j])) j--;
+      if (j > prevIdx) idx = j; // else: nothing better back to prevIdx — keep the flagged candidate
+    }
+    picked.push(idx);
+    prevIdx = idx;
+  }
+  return picked.map((idx, k) => ({
+    rev: revs[idx],
+    index: idx,
+    span: idx - (k === 0 ? -1 : picked[k - 1]),
+  }));
+}
+
+/**
+ * For a revert-flagged sampled revision, find the nearest *earlier* kept
+ * (collapse-surviving) revision in `collapsedRevs` whose sha1 exactly
+ * matches `metaRev`'s — meaning the content really is that earlier state,
+ * restored, so that revision's author/date/comment is the honest
+ * attribution for the wording, not the reverting editor's. Returns null
+ * when there's no such match (a partial revert, or an undo bundled with
+ * unrelated changes) — the reverting editor's own metadata is the only
+ * content-accurate answer left.
+ *
+ * O(n) scan; only ever called for a revert-flagged sample (rare), and
+ * `collapsedRevs` tops out in the low thousands even for a very actively
+ * edited article.
+ */
+function findRestoredAttribution(metaRev, collapsedRevs) {
+  if (!metaRev.sha1) return null;
+  const selfIdx = collapsedRevs.findIndex((r) => r.revid === metaRev.revid);
+  for (let i = selfIdx - 1; i >= 0; i--) {
+    if (collapsedRevs[i].sha1 === metaRev.sha1) return collapsedRevs[i];
+  }
+  return null;
+}
+
+/**
+ * Resolve how a sampled revision (with `.revertFlagged` and `.restoredFrom`
+ * already attached — see main()) should be *credited* for display, as
+ * opposed to what content it contributed (unaffected either way). A
+ * revert-flagged revision is never presented as plain authorship of the
+ * wording it introduced or last touched:
+ *  - `restoredFrom` set: the content is byte-identical to that earlier
+ *    revision — credit *its* author/date/comment, with `restored: true` so
+ *    formatAttribution can say so explicitly (crediting an earlier date
+ *    than a chronological neighbour needs an explanation, not silence).
+ *  - `revertFlagged` but no restoredFrom (a partial revert/undo bundled
+ *    with other changes): keep the revision's own metadata, but
+ *    `revertLabel: true` so a caller prefixes it (e.g. "↩ VanFinda")
+ *    instead of presenting it as plain authorship.
+ *  - neither: passes through unchanged.
+ */
+function attributionFor(rev) {
+  if (rev.restoredFrom) {
+    return {
+      user: rev.restoredFrom.user,
+      timestamp: rev.restoredFrom.timestamp,
+      comment: rev.restoredFrom.comment,
+      revertLabel: false,
+      restored: true,
+    };
+  }
+  if (rev.revertFlagged) {
+    return { user: rev.user, timestamp: rev.timestamp, comment: rev.comment, revertLabel: true, restored: false };
+  }
+  return { user: rev.user, timestamp: rev.timestamp, comment: rev.comment, revertLabel: false, restored: false };
+}
+
+/**
+ * Render the "by ..." fragment of a doc tooltip line for the revision that
+ * introduced or last-reworked a segment, honouring attributionFor's
+ * resolution:
+ *  - restored: an explicit "(state restored by a revert on <date>)" note,
+ *    so an attributed date earlier than its neighbours in the ledger reads
+ *    as intentional, not a bug.
+ *  - revertLabel: a "↩ " prefix and "(revert)" suffix.
+ *  - either way, plus a composite-step span note when this sample absorbed
+ *    more than one underlying revision since the previous sample point
+ *    (`revisions[idx].span > 1`) — the honesty fix for gap attribution:
+ *    "VanFinda (+13 other revisions since 12 May 2026)".
+ */
+function formatAttribution(rev, attr, revisions, idx) {
+  const user = displayUser(attr);
+  if (attr.restored) {
+    return `${user} (state restored by a revert on ${fmtDate(rev.timestamp)})`;
+  }
+  const label = attr.revertLabel ? `↩ ${user} (revert)` : user;
+  const span = revisions[idx]?.span || 1;
+  if (span > 1 && idx > 0) {
+    const since = fmtDate(revisions[idx - 1].timestamp);
+    return `${label} (+${span - 1} other revision${span - 1 === 1 ? '' : 's'} since ${since})`;
+  }
+  return label;
 }
 
 /**
@@ -694,13 +902,19 @@ function computeChurn(texts) {
  * Rank contributors by how many characters of their insertions survive into
  * the final text, and hand the top `max` a palette slot. Everyone else is
  * bucketed as "others". Returns { index: Map<user, 0..max-1>, top: [user] }.
+ *
+ * Credits via attributionFor(), not the raw revision: a revert-flagged
+ * revision that introduced a marker (a rollback that happens to also add
+ * new wording, or whose content was restored from an earlier byte-identical
+ * revision) should never win Authors-lens palette real estate for the
+ * reverting editor — the same honesty rule the doc tooltips apply.
  */
 function rankAuthors(markers, revisions, max = 8) {
   const survived = new Map();
   for (const m of markers) {
     const rev = revisions[m.revision];
     if (!rev) continue;
-    const user = displayUser(rev);
+    const user = displayUser(attributionFor(rev));
     survived.set(user, (survived.get(user) || 0) + m.length);
   }
   const top = [...survived.entries()]
@@ -801,12 +1015,17 @@ function renderDocument(text, markers, revisions, authorIndex, nowMs = Date.now(
     // Age bucket 1 (old) .. 6 (recent), from the most recent touch's real
     // calendar date — not its rank among the sampled revisions.
     const age = ageBucket(rTouch.timestamp, nowMs);
-    const user = displayUser(rIntro);
+    // Attribution goes through attributionFor(): a revert-flagged
+    // introducing revision is never credited (nor palette-coloured) as
+    // plain authorship — see the section above renderDocument.
+    const introAttr = attributionFor(rIntro);
+    const user = displayUser(introAttr);
     const au = authorIndex.has(user) ? authorIndex.get(user) : 'x';
 
-    let tip = `added ${fmtDate(rIntro.timestamp)} by ${user} · “${displayComment(rIntro)}”`;
+    let tip = `added ${fmtDate(introAttr.timestamp)} by ${formatAttribution(rIntro, introAttr, revisions, introduced)} · “${displayComment(introAttr)}”`;
     if (touched !== introduced && rTouch) {
-      tip += `\nlast reworked ${fmtDate(rTouch.timestamp)} by ${displayUser(rTouch)} · “${displayComment(rTouch)}”`;
+      const touchAttr = attributionFor(rTouch);
+      tip += `\nlast reworked ${fmtDate(touchAttr.timestamp)} by ${formatAttribution(rTouch, touchAttr, revisions, touched)} · “${displayComment(touchAttr)}”`;
     }
     tip += `\nedited ×${seg.covering.length}`;
 
@@ -848,14 +1067,36 @@ function renderLedger(revisions, churn, authorIndex, lang, markers) {
         label += ' · nothing survives';
         full += '. None of this revision’s wording survives in the current text.';
       }
+      // This row is itself a revert/rollback/undo (tag or comment
+      // heuristic — see isRevertFlagged). Mark it visually (a small ↩
+      // glyph + muted label) rather than silently letting it look like an
+      // ordinary edit: some survive mid-history as a sample point with no
+      // better non-flagged substitute (pickSamplePoints), and the true
+      // final revision can be one too. If its content was restored
+      // byte-for-byte from an earlier revision (restoredFrom), say who
+      // that was and when — the doc tooltips credit them, so the ledger
+      // should explain why.
+      if (r.revertFlagged) {
+        const attr = attributionFor(r);
+        if (attr.restored) {
+          label += ` · ↩ revert — text credited to ${displayUser(attr)}’s ${fmtDate(attr.timestamp)} revision`;
+          full += ` This revision is flagged as a revert/rollback; its content matches an earlier revision byte-for-byte, so the document credits ${displayUser(attr)}’s ${fmtDate(attr.timestamp)} edit instead of this one.`;
+        } else {
+          label += ' · ↩ revert';
+          full += ' This revision is flagged as a revert/rollback/undo (tag or edit summary).';
+        }
+      }
       const user = displayUser(r);
       const au = authorIndex.has(user) ? authorIndex.get(user) : null;
       const swatch = au === null ? '' : `<i class="au-dot" data-au="${au}"></i>`;
       const href = `https://${encodeURIComponent(lang)}.wikipedia.org/w/index.php?oldid=${encodeURIComponent(r.revid)}`;
-      return `<li class="commit" data-rev="${i}" tabindex="0">
+      const revertGlyph = r.revertFlagged
+        ? '<span class="revert-glyph" aria-hidden="true" title="Revert/rollback/undo">↩</span> '
+        : '';
+      return `<li class="commit${r.revertFlagged ? ' is-revert' : ''}" data-rev="${i}" tabindex="0">
   <span class="dot m${bucket}" title="${escapeHtml(full)}"></span>
   <span class="c-body">
-    <span class="c-top"><a class="sha" href="${escapeHtml(href)}">${escapeHtml(fmtDate(r.timestamp))}</a> <span class="subject" title="${escapeHtml(displayComment(r))}">${escapeHtml(displayComment(r))}</span></span>
+    <span class="c-top">${revertGlyph}<a class="sha" href="${escapeHtml(href)}">${escapeHtml(fmtDate(r.timestamp))}</a> <span class="subject" title="${escapeHtml(displayComment(r))}">${escapeHtml(displayComment(r))}</span></span>
     <span class="c-meta" title="${escapeHtml(full)}">${swatch}${escapeHtml(user)} · ${escapeHtml(label)}</span>
   </span>
 </li>`;
@@ -1054,6 +1295,10 @@ a.sha:hover { text-decoration: underline; }
 .subject { font-size: .84rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c-meta { display: flex; align-items: center; font-size: .74rem; color: var(--muted); margin-top: .1rem; min-width: 0; }
 .c-meta .au-dot { width: 8px; height: 8px; }
+.revert-glyph {
+  flex: none; font-size: .74rem; color: var(--muted); line-height: 1;
+}
+li.commit.is-revert .subject { color: var(--muted); font-weight: 500; }
 footer.report {
   border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1rem;
   font-size: .8rem; color: var(--muted);
@@ -1196,25 +1441,39 @@ async function main() {
     );
   }
 
-  const sampledMeta = sampleEvenly(collapsedRevs, opts.maxRevisions);
+  // Choose sample points on the collapsed metadata timeline, skipping
+  // revert-flagged revisions where a non-flagged predecessor is available
+  // (see pickSamplePoints) — a rollback/undo should never be "the face" of
+  // a sampled step. The true final revision is exempt (it must stay the
+  // article's real current state); its attribution is made honest
+  // separately once its content is fetched, below.
+  const samplePoints = pickSamplePoints(collapsedRevs, opts.maxRevisions);
   process.stderr.write(
-    `deep-diffs-wiki: ${collapsedRevs.length.toLocaleString('en')} revisions — fetching content for ${sampledMeta.length} sampled revisions …\n`
+    `deep-diffs-wiki: ${collapsedRevs.length.toLocaleString('en')} revisions — fetching content for ${samplePoints.length} sampled revisions …\n`
   );
 
   // Fetch content sequentially (rate-limit friendly), dropping revisions
   // that are suppressed/deleted/empty while keeping revisions[] and texts[]
-  // aligned so marker.revision indexes stay meaningful.
+  // aligned so marker.revision indexes stay meaningful. `span` carries
+  // forward across a dropped sample point so the next surviving one still
+  // reports the true count of underlying revisions it absorbs.
   const revisions = [];
   const texts = [];
-  for (const meta of sampledMeta) {
+  let carrySpan = 0;
+  for (const sp of samplePoints) {
     await sleep(REQUEST_GAP_MS);
-    const rev = await fetchRevision(opts.lang, meta.revid);
-    if (!rev) continue;
+    const rev = await fetchRevision(opts.lang, sp.rev.revid);
+    if (!rev) { carrySpan += sp.span; continue; }
     const text = opts.stripMarkup ? stripWikitext(rev.content) : rev.content.trim();
     if (text.length === 0) {
-      warn(`revision ${meta.revid} is empty${opts.stripMarkup ? ' after markup stripping' : ''} (blanking vandalism?) — skipping`);
+      warn(`revision ${sp.rev.revid} is empty${opts.stripMarkup ? ' after markup stripping' : ''} (blanking vandalism?) — skipping`);
+      carrySpan += sp.span;
       continue;
     }
+    rev.span = sp.span + carrySpan;
+    carrySpan = 0;
+    rev.revertFlagged = isRevertFlagged(sp.rev);
+    rev.restoredFrom = rev.revertFlagged ? findRestoredAttribution(sp.rev, collapsedRevs) : null;
     revisions.push(rev);
     texts.push(text);
   }
@@ -1250,6 +1509,14 @@ async function main() {
     noteParts.push(
       `${(collapsedByCycle + droppedByTag).toLocaleString('en')} reverted/vandalised revisions collapsed before sampling ` +
       `(${collapsedByCycle.toLocaleString('en')} matched an earlier revision byte-for-byte, ${droppedByTag.toLocaleString('en')} tagged mw-reverted).`
+    );
+  }
+  const revertSurvivors = revisions.filter((r) => r.revertFlagged).length;
+  if (revertSurvivors > 0) {
+    noteParts.push(
+      `${revertSurvivors.toLocaleString('en')} sampled revision(s) are themselves reverts/rollbacks with no better ` +
+      'non-flagged substitute nearby (marked ↩ in the ledger); their attributed authorship in the document favours the ' +
+      'restored earlier revision where the content matches one byte-for-byte.'
     );
   }
 
@@ -1332,4 +1599,9 @@ export {
   renderAgeLegend,
   ageBucket,
   collapseReverts,
+  isRevertFlagged,
+  pickSamplePoints,
+  findRestoredAttribution,
+  attributionFor,
+  formatAttribution,
 };
